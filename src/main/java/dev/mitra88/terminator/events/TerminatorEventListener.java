@@ -32,6 +32,7 @@ public class TerminatorEventListener implements Listener {
     private static final String TARGET_DISPLAY_NAME = ColorUtils.color("&dHasty Terminator &6✪✪✪✪&c➎");
     private static final float SIDE_SPREAD_DEGREES = 20f;
     private static final long HOLD_WINDOW_MS = 250;
+    private static final long SHOOT_COOLDOWN_MS = 350;
 
     private final Terminator plugin;
 
@@ -44,6 +45,7 @@ public class TerminatorEventListener implements Listener {
 
     private final Map<UUID, HoldState> holdMap = new HashMap<>();
     private final Map<UUID, Double> lastMonsterDamage = new HashMap<>();
+    private final Map<UUID, Long> shootCooldown = new HashMap<>();
 
     public TerminatorEventListener(Terminator plugin) {
         this.plugin = plugin;
@@ -83,13 +85,10 @@ public class TerminatorEventListener implements Listener {
         arrow.setVelocity(direction.multiply(4));
 
         double baseDamage = ThreadLocalRandom.current().nextDouble(20000, 50000);
-
         double soulBonus = lastMonsterDamage.getOrDefault(player.getUniqueId(), 0.0) * 10;
-
         double totalDamage = baseDamage + soulBonus;
 
         arrow.setDamage(totalDamage);
-
         player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 1.0f);
     }
 
@@ -111,7 +110,15 @@ public class TerminatorEventListener implements Listener {
             return;
         }
 
+        long now = System.currentTimeMillis();
+        long lastShoot = shootCooldown.getOrDefault(p.getUniqueId(), 0L);
+        if (now - lastShoot < SHOOT_COOLDOWN_MS) {
+            event.setCancelled(true);
+            return;
+        }
+
         event.setCancelled(true);
+        shootCooldown.put(p.getUniqueId(), now);
 
         float yaw = p.getLocation().getYaw();
         float pitch = p.getLocation().getPitch();
@@ -119,7 +126,7 @@ public class TerminatorEventListener implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
-                shootArrow(p, dirFromYawPitch(yaw, pitch));              // center
+                shootArrow(p, dirFromYawPitch(yaw, pitch)); // center
                 shootArrow(p, dirFromYawPitch(yaw + SIDE_SPREAD_DEGREES, pitch)); // right
                 shootArrow(p, dirFromYawPitch(yaw - SIDE_SPREAD_DEGREES, pitch)); // left
                 setHold(p, incomingSide);
@@ -142,7 +149,7 @@ public class TerminatorEventListener implements Listener {
 
     @EventHandler
     public void onEntityDeath(EntityDeathEvent event) {
-        if (event.getEntity().getKiller() != null && event.getEntity().getKiller() != null) {
+        if (event.getEntity().getKiller() != null) {
             Player player = event.getEntity().getKiller();
             LivingEntity monster = event.getEntity();
             double monsterDamage = Objects.requireNonNull(monster.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue();
