@@ -29,10 +29,10 @@ public class TerminatorEventListener implements Listener {
             Action.LEFT_CLICK_AIR, Action.LEFT_CLICK_BLOCK
     );
 
-    private static final String TARGET_DISPLAY_NAME = ColorUtils.color("&dHasty Terminator &6✪✪✪✪&c➎");
-    private static final float SIDE_SPREAD_DEGREES = 20f;
+    private static final String TARGET_DISPLAY_NAME = ColorUtils.color("&dPrecise Terminator &6✪✪✪✪&c➎");
+    private static final float SIDE_SPREAD_DEGREES = 10f;
     private static final long HOLD_WINDOW_MS = 250;
-    private static final long SHOOT_COOLDOWN_MS = 350;
+    private static final long SHOOT_COOLDOWN_MS = 200;
 
     private final Terminator plugin;
 
