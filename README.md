@@ -1,13 +1,12 @@
 # Terminator - Hypixel Skyblock
 
 ## Description
-Terminator is a Spigot plugin inspired by the [Terminator](https://wiki.hypixel.net/Terminator) from [Hypixel Skyblock](https://wiki.hypixel.net/Main_Page).
+Terminator is a plugin inspired by the [Terminator](https://wiki.hypixel.net/Terminator) from [Hypixel Skyblock](https://wiki.hypixel.net/Main_Page).
 
 ## Features
 - **3 Arrows**: Shoots 3 arrows at once.
-- **Crit Damage**: Arrow always crits.
 - **Shortbow**: Instantly shoots.
-- **Enderman**: Can damage enderman :).
+- **Enderman**: Can damage enderman.
 
 ## Usage
 ### Installation

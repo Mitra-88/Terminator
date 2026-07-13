@@ -1,10 +1,10 @@
 name: Terminator
 version: '${project.version}'
 main: dev.mitra88.terminator.Terminator
-api-version: '1.21'
+api-version: '26.2'
 load: STARTUP
 authors: [Mitra-88]
-description: Terminator is a Spigot plugin inspired by the Terminator from Hypixel Skyblock.
+description: Terminator is a plugin inspired by the Terminator from Hypixel Skyblock.
 website: https://github.com/Mitra-88/Terminator
 commands:
   giveterminator:
