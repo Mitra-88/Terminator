@@ -1,7 +1,5 @@
-package dev.mitra88.terminator.commands;
+package dev.mitra88.terminator;
 
-import dev.mitra88.terminator.builder.TerminatorBuilder;
-import dev.mitra88.terminator.utils.ColorUtils;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

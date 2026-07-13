@@ -1,7 +1,5 @@
 package dev.mitra88.terminator;
 
-import dev.mitra88.terminator.commands.TerminatorCommand;
-import dev.mitra88.terminator.events.TerminatorEventListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;

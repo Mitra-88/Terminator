@@ -1,10 +1,9 @@
-package dev.mitra88.terminator.builder;
+package dev.mitra88.terminator;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import dev.mitra88.terminator.utils.ColorUtils;
 import org.bukkit.enchantments.Enchantment;
 
 import java.util.Arrays;

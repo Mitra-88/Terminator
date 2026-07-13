@@ -1,7 +1,5 @@
-package dev.mitra88.terminator.events;
+package dev.mitra88.terminator;
 
-import dev.mitra88.terminator.Terminator;
-import dev.mitra88.terminator.utils.ColorUtils;
 import org.bukkit.Sound;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Enderman;
