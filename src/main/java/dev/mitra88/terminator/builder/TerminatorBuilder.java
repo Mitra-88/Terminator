@@ -17,24 +17,22 @@ public class TerminatorBuilder {
         ItemStack terminatorBow = new ItemStack(Material.BOW);
         ItemMeta meta = terminatorBow.getItemMeta();
 
-        Objects.requireNonNull(meta).setDisplayName(ColorUtils.color("&dHasty Terminator &6✪✪✪✪&c➎"));
+        Objects.requireNonNull(meta).setDisplayName(ColorUtils.color("&dPrecise Terminator &6✪✪✪✪&c➎"));
 
         List<String> lore = Arrays.asList(
-                ColorUtils.color("&7Gear Score: &d1014 &8(3467)"),
-                ColorUtils.color("&7Damage: &c36182 &e(+30) &8(+1,598)"),
-                ColorUtils.color("&7Strength: &c110 &e(+30) &6[+5] &9(+20) &8(+493.5)"),
-                ColorUtils.color("&7Crit Chance: &c+65% &9(+60%) &8(+100,75%)"),
-                ColorUtils.color("&7Crit Damage: &c+280% &8(+1,198,5%)"),
-                ColorUtils.color("&7Bonus Attack Speed: &c+44% &8(+62%)"),
-                ColorUtils.color("&7Shot Cooldown: &a0.5s"),
+                ColorUtils.color("&7Gear Score: &d1042 &8(4163)"),
+                ColorUtils.color("&7Damage: &c374 &e(+30) &8(+1,958.53)"),
+                ColorUtils.color("&7Strength: &c110 &e(+30) &6[+5] &9(+20) &8(+599.55)"),
+                ColorUtils.color("&7Crit Chance: &c+68% &9(+60%) &8(+104.04%)"),
+                ColorUtils.color("&7Crit Damage: &c+280% &8(+1,456.05%)"),
+                ColorUtils.color("&7Bonus Attack Speed: &c+44% &8(+61.2%)"),
+                ColorUtils.color("&7Shot Cooldown: &a0.2s"),
                 "",
                 ColorUtils.color("&d&lSoul Eater V &9Chance V, Cubism VI"),
                 ColorUtils.color("&9Dragon Hunter V, Dragon Tracer V, Flame II"),
                 ColorUtils.color("&9Impaling III, Infinite Quiver X, Overload V"),
                 ColorUtils.color("&9Piercing I, Power VII, Punch II"),
-                ColorUtils.color("&9Snipe IV, Vicious V"),
-                "",
-                ColorUtils.color("&5◆ End Rune III"),
+                ColorUtils.color("&9Snipe IV, Vicious V, Gravity VI, Tabasco III"),
                 "",
                 ColorUtils.color("&7Shoots &b3 &7arrows at once."),
                 ColorUtils.color("&7Can damage enderman."),
