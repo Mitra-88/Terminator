@@ -19,7 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TerminatorBuilder {
+@SuppressWarnings("UnstableApiUsage")
+public final class TerminatorBuilder {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
@@ -27,11 +28,9 @@ public class TerminatorBuilder {
         return MM.deserialize(input).decoration(TextDecoration.ITALIC, false);
     }
 
-    @SuppressWarnings("UnstableApiUsage")
-    public static ItemStack giveTerminator(TerminatorConfig config) {
-        ItemStack terminatorBow = new ItemStack(config.material);
-        ItemMeta meta = terminatorBow.getItemMeta();
-        if (meta == null) return terminatorBow;
+    public static ItemStack build(TerminatorConfig config) {
+        ItemStack bow = new ItemStack(config.material);
+        ItemMeta meta = bow.getItemMeta();
 
         meta.displayName(mm(config.displayName));
 
@@ -44,10 +43,10 @@ public class TerminatorBuilder {
         }
 
         if (!config.enchantments.isEmpty()) {
-            Registry<Enchantment> enchRegistry = RegistryAccess.registryAccess()
+            Registry<Enchantment> registry = RegistryAccess.registryAccess()
                     .getRegistry(RegistryKey.ENCHANTMENT);
             for (Map.Entry<NamespacedKey, Integer> entry : config.enchantments.entrySet()) {
-                Enchantment ench = enchRegistry.get(entry.getKey());
+                Enchantment ench = registry.get(entry.getKey());
                 if (ench != null) {
                     meta.addEnchant(ench, entry.getValue(), true);
                 }
@@ -56,17 +55,15 @@ public class TerminatorBuilder {
 
         meta.setUnbreakable(config.unbreakable);
         meta.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
-        terminatorBow.setItemMeta(meta);
+        bow.setItemMeta(meta);
 
         if (!config.hiddenTooltipComponents.isEmpty()) {
-            terminatorBow.setData(
-                    DataComponentTypes.TOOLTIP_DISPLAY,
+            bow.setData(DataComponentTypes.TOOLTIP_DISPLAY,
                     TooltipDisplay.tooltipDisplay()
                             .addHiddenComponents(config.hiddenTooltipComponents.toArray(new DataComponentType[0]))
-                            .build()
-            );
+                            .build());
         }
 
-        return terminatorBow;
+        return bow;
     }
 }

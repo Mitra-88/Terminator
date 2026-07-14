@@ -8,48 +8,45 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jspecify.annotations.NonNull;
 
-public class TerminatorCommand implements BasicCommand {
+public final class TerminatorCommand implements BasicCommand {
 
-    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+    private static final MiniMessage MM = MiniMessage.miniMessage();
 
-    private final Terminator plugin;
     private final TerminatorConfig config;
-    private final boolean isReload;
+    private final boolean reload;
 
-    public TerminatorCommand(Terminator plugin, TerminatorConfig config, boolean isReload) {
-        this.plugin = plugin;
+    public TerminatorCommand(TerminatorConfig config, boolean reload) {
         this.config = config;
-        this.isReload = isReload;
+        this.reload = reload;
     }
 
     @Override
     public void execute(@NonNull CommandSourceStack source, String @NonNull [] args) {
         CommandSender sender = source.getSender();
 
-        if (isReload) {
+        if (reload) {
             if (!sender.hasPermission("terminator.reload")) {
-                sender.sendMessage(MINI_MESSAGE.deserialize("<red>You do not have permission to use this command."));
+                sender.sendMessage(MM.deserialize("<red>You do not have permission to use this command."));
                 return;
             }
-            config.reload(plugin);
-            sender.sendMessage(MINI_MESSAGE.deserialize("<green>Terminator config reloaded successfully."));
+            config.reload();
+            sender.sendMessage(MM.deserialize("<green>Terminator config reloaded successfully."));
             return;
         }
 
         if (!sender.hasPermission("terminator.give")) {
-            sender.sendMessage(MINI_MESSAGE.deserialize("<red>You do not have permission to use this command."));
+            sender.sendMessage(MM.deserialize("<red>You do not have permission to use this command."));
             return;
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("This command can only be run by a player.");
+            sender.sendMessage(MM.deserialize("<red>This command can only be run by a player."));
             return;
         }
 
-        ItemStack terminatorBow = TerminatorBuilder.giveTerminator(config);
-        player.getInventory().addItem(terminatorBow).forEach((_, leftover) ->
-                player.getWorld().dropItem(player.getLocation(), leftover)
-        );
-        player.sendMessage(MINI_MESSAGE.deserialize("<green>You have received the Terminator."));
+        ItemStack bow = TerminatorBuilder.build(config);
+        player.getInventory().addItem(bow).forEach((_, leftover) ->
+                player.getWorld().dropItem(player.getLocation(), leftover));
+        player.sendMessage(MM.deserialize("<green>You have received the Terminator."));
     }
 }
