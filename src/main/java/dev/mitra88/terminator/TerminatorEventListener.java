@@ -27,18 +27,23 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class TerminatorEventListener implements Listener {
 
     private final TerminatorConfig config;
 
-    private enum ClickSide { NONE, LEFT, RIGHT }
+    private enum ClickSide { LEFT, RIGHT }
 
-    private static final class HoldState {
-        ClickSide lastSide = ClickSide.NONE;
-        long untilMs = 0L;
+    private static final class PlayerState {
+        ClickSide lastSide;
+        long holdUntilMs;
+        long shootCooldownUntilMs;
     }
 
     private static final Component AB_T1;
@@ -54,11 +59,9 @@ public class TerminatorEventListener implements Listener {
                 .decoration(TextDecoration.ITALIC, false);
     }
 
-    private final Int2IntOpenHashMap  hitCounter    = new Int2IntOpenHashMap();
-    private final Int2LongOpenHashMap beamCooldown  = new Int2LongOpenHashMap();
-
-    private final Map<UUID, HoldState> holdMap       = new HashMap<>();
-    private final Map<UUID, Long>      shootCooldown = new HashMap<>();
+    private final Int2IntOpenHashMap  hitCounter   = new Int2IntOpenHashMap();
+    private final Int2LongOpenHashMap beamCooldown = new Int2LongOpenHashMap();
+    private final Map<UUID, PlayerState> states    = new HashMap<>();
 
     public TerminatorEventListener(Terminator ignoredPlugin, TerminatorConfig config) {
         this.config = config;
@@ -72,26 +75,18 @@ public class TerminatorEventListener implements Listener {
                 : ClickSide.LEFT;
     }
 
-    private boolean blockOppositeIfHolding(Player p, ClickSide incoming) {
-        HoldState st = holdMap.computeIfAbsent(p.getUniqueId(), _ -> new HoldState());
-        long now = System.currentTimeMillis();
-        if (now >= st.untilMs) st.lastSide = ClickSide.NONE;
-        return st.lastSide != ClickSide.NONE && st.lastSide != incoming;
-    }
-
-    private void setHold(Player p, ClickSide side) {
-        HoldState st = holdMap.computeIfAbsent(p.getUniqueId(), _ -> new HoldState());
-        st.lastSide = side;
-        st.untilMs = System.currentTimeMillis() + config.holdWindowMs;
+    private PlayerState state(Player p) {
+        return states.computeIfAbsent(p.getUniqueId(), _ -> new PlayerState());
     }
 
     private static Vector dirFromYawPitch(float yawDeg, float pitchDeg) {
-        double yaw = Math.toRadians(yawDeg);
+        double yaw   = Math.toRadians(yawDeg);
         double pitch = Math.toRadians(pitchDeg);
-        double x = -Math.cos(pitch) * Math.sin(yaw);
-        double y = -Math.sin(pitch);
-        double z =  Math.cos(pitch) * Math.cos(yaw);
-        return new Vector(x, y, z).normalize();
+        double cosP  = Math.cos(pitch);
+        return new Vector(
+                -cosP * Math.sin(yaw),
+                -Math.sin(pitch),
+                cosP * Math.cos(yaw));
     }
 
     private void shootArrow(Player player, Vector direction) {
@@ -129,39 +124,42 @@ public class TerminatorEventListener implements Listener {
 
         if (incomingSide == ClickSide.LEFT
                 && hitCounter.get(id) >= config.salvationHitsRequired) {
-
             if (now - beamCooldown.get(id) < config.beamCooldownMs) {
                 event.setCancelled(true);
                 return;
             }
             event.setCancelled(true);
             beamCooldown.put(id, now);
-
             hitCounter.put(id, 0);
             fireSalvationBeam(p);
             return;
         }
 
-        if (blockOppositeIfHolding(p, incomingSide)) {
+        PlayerState st = state(p);
+
+        if (now < st.holdUntilMs && st.lastSide != incomingSide) {
             event.setCancelled(true);
             return;
         }
-        if (now - shootCooldown.getOrDefault(p.getUniqueId(), 0L) < config.shootCooldownMs) {
+
+        if (now < st.shootCooldownUntilMs) {
             event.setCancelled(true);
             return;
         }
 
         event.setCancelled(true);
-        shootCooldown.put(p.getUniqueId(), now);
+        st.shootCooldownUntilMs = now + config.shootCooldownMs;
+        st.lastSide = incomingSide;
+        st.holdUntilMs = now + config.holdWindowMs;
 
-        float yaw = p.getLocation().getYaw();
-        float pitch = p.getLocation().getPitch();
+        Location loc = p.getLocation();
+        float yaw = loc.getYaw();
+        float pitch = loc.getPitch();
         final float spread = config.sideSpreadDegrees;
 
         shootArrow(p, dirFromYawPitch(yaw, pitch));                     // center
         shootArrow(p, dirFromYawPitch(yaw + spread, pitch));    // right
         shootArrow(p, dirFromYawPitch(yaw - spread, pitch));    // left
-        setHold(p, incomingSide);
     }
 
     @EventHandler
@@ -181,23 +179,24 @@ public class TerminatorEventListener implements Listener {
             return;
         }
 
-        if (target instanceof Enderman enderman && arrow.getShooter() instanceof Player shooter) {
+        if (!(arrow.getShooter() instanceof Player shooter)) {
+            arrow.remove();
+            return;
+        }
+
+        if (target instanceof Enderman enderman) {
             enderman.damage(arrow.getDamage(), shooter);
         }
 
         arrow.remove();
-
-        if (arrow.getShooter() instanceof Player shooter) {
-            onSalvationHit(shooter);
-        }
+        onSalvationHit(shooter);
     }
 
     private void onSalvationHit(Player p) {
         int id = p.getEntityId();
         int current = hitCounter.get(id);
-        if (current >= config.salvationHitsRequired) {
-            return;
-        }
+        if (current >= config.salvationHitsRequired) return;
+
         int next = current + 1;
         hitCounter.put(id, next);
 
@@ -211,50 +210,53 @@ public class TerminatorEventListener implements Listener {
 
     private void fireSalvationBeam(Player player) {
         Location eye = player.getEyeLocation();
-        Vector dir = eye.getDirection().clone().normalize();
-        World world = eye.getWorld();
-        Vector originVec = eye.toVector();
+        World world  = eye.getWorld();
+        Vector origin = eye.toVector();
+        Vector dir    = eye.getDirection();
 
-        final double maxDist = config.beamMaxDistance;
-        final double raySize = config.beamRaySize;
+        final double maxDist   = config.beamMaxDistance;
+        final double raySize   = config.beamRaySize;
         final int    maxPierce = config.beamMaxPierce;
 
         RayTraceResult blockHit = world.rayTraceBlocks(
                 eye, dir, maxDist, FluidCollisionMode.NEVER, false);
 
-        double wallDist = maxDist;
+        double limit = maxDist;
         if (blockHit != null) {
-            blockHit.getHitPosition();
-            wallDist = originVec.distance(blockHit.getHitPosition());
+            limit = origin.distance(blockHit.getHitPosition());
         }
 
-        spawnLavaTrail(world, originVec, dir, Math.min(maxDist, wallDist));
+        spawnLavaTrail(world, origin, dir, limit);
 
-        Set<Entity> alreadyHit = new HashSet<>(maxPierce);
-        Vector cursor = originVec.clone();
+        final Set<Entity> alreadyHit = new HashSet<>(maxPierce);
+        final Vector cursor = origin.clone();
+        final double dirX = dir.getX();
+        final double dirY = dir.getY();
+        final double dirZ = dir.getZ();
+        final double ox = origin.getX();
+        final double oy = origin.getY();
+        final double oz = origin.getZ();
         int pierced = 0;
-        double traveled = 0.0;
-        double limit = Math.min(maxDist, wallDist);
 
-        while (pierced < maxPierce && traveled < limit) {
-            double remaining = limit - traveled;
+        while (pierced < maxPierce) {
+            double traveled = (cursor.getX() - ox) * dirX
+                    + (cursor.getY() - oy) * dirY
+                    + (cursor.getZ() - oz) * dirZ;
+            if (traveled >= limit) break;
+
             Location cursorLoc = cursor.toLocation(world);
-
             RayTraceResult r = world.rayTraceEntities(
-                    cursorLoc, dir, remaining, raySize,
+                    cursorLoc, dir, limit - traveled, raySize,
                     e -> e != player
                             && !alreadyHit.contains(e)
                             && e instanceof LivingEntity
                             && !(e instanceof ArmorStand));
 
-            if (r == null || r.getHitEntity() == null) {
-                break;
-            }
+            if (r == null || r.getHitEntity() == null) break;
 
             Entity ent = r.getHitEntity();
             alreadyHit.add(ent);
 
-            // Apply damage, bypassing i-frames per design.
             if (ent instanceof LivingEntity le) {
                 int oldMax = le.getMaximumNoDamageTicks();
                 le.setMaximumNoDamageTicks(0);
@@ -266,29 +268,43 @@ public class TerminatorEventListener implements Listener {
             pierced++;
 
             Vector hitPos = r.getHitPosition();
-            cursor = hitPos.clone().add(dir.clone().multiply(0.5));
-            traveled = originVec.distance(cursor);
+            cursor.setX(hitPos.getX() + dirX * 0.5);
+            cursor.setY(hitPos.getY() + dirY * 0.5);
+            cursor.setZ(hitPos.getZ() + dirZ * 0.5);
         }
     }
 
-    private void spawnLavaTrail(World world, Vector originVec, Vector dir, double length) {
+    private void spawnLavaTrail(World world, Vector origin, Vector dir, double length) {
         int count = Math.max(1, (int) (length * config.beamParticlesPerMeter));
         double step = length / count;
-        Vector stepVec = dir.clone().multiply(step);
-        Location cur = originVec.toLocation(world);
+        double stepX = dir.getX() * step;
+        double stepY = dir.getY() * step;
+        double stepZ = dir.getZ() * step;
+        double x = origin.getX();
+        double y = origin.getY();
+        double z = origin.getZ();
         for (int i = 0; i < count; i++) {
-            world.spawnParticle(Particle.DRIPPING_LAVA, cur, 1,
+            world.spawnParticle(Particle.DRIPPING_LAVA, x, y, z, 1,
                     0.02, 0.02, 0.02, 0.0);
-            cur.add(stepVec);
+            x += stepX;
+            y += stepY;
+            z += stepZ;
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        int id = event.getPlayer().getEntityId();
+        Player p = event.getPlayer();
+        int id = p.getEntityId();
         hitCounter.remove(id);
         beamCooldown.remove(id);
-        holdMap.remove(event.getPlayer().getUniqueId());
-        shootCooldown.remove(event.getPlayer().getUniqueId());
+        states.remove(p.getUniqueId());
+    }
+
+    public void cleanup() {
+        hitCounter.clear();
+        beamCooldown.clear();
+        states.clear();
     }
 }
+

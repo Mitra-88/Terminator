@@ -2,6 +2,8 @@ package dev.mitra88.terminator;
 
 import io.papermc.paper.datacomponent.DataComponentType;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -11,8 +13,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.block.Action;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -67,9 +67,7 @@ public class TerminatorConfig {
         this.arrowDamageMax = cfg.getDouble("shooting.arrow-damage-max", 50000.0);
         this.clickActions = loadClickActions(cfg.getStringList("shooting.click-actions"));
 
-        this.shootSound = loadSound(
-                cfg.getString("shooting.shoot-sound", "ENTITY_ARROW_SHOOT")
-        );
+        this.shootSound = loadSound(cfg.getString("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"));
         this.shootSoundVolume = (float) cfg.getDouble("shooting.shoot-sound-volume", 1.0);
         this.shootSoundPitch = (float) cfg.getDouble("shooting.shoot-sound-pitch", 1.0);
 
@@ -85,65 +83,58 @@ public class TerminatorConfig {
         this.hiddenTooltipComponents = loadHiddenComponents(
                 cfg.getStringList("item.tooltip-hidden-components")
         );
+
         this.salvationHitsRequired   = cfg.getInt("salvation.hits-required", 3);
-        this.beamMaxDistance         = cfg.getDouble("salvation.beam-distance", 32.0);
-        this.beamMaxPierce           = cfg.getInt("salvation.beam-max-pierce", 5);
+        // Bukkit ray tracing throws IllegalArgumentException on negative inputs
+        this.beamMaxDistance         = Math.max(0.0, cfg.getDouble("salvation.beam-distance", 32.0));
+        this.beamMaxPierce           = Math.max(0, cfg.getInt("salvation.beam-max-pierce", 5));
         this.beamDamage              = cfg.getDouble("salvation.beam-damage", 50000.0);
         this.beamCooldownMs          = cfg.getLong("salvation.beam-cooldown-ms", 100L);
-        this.beamParticlesPerMeter   = cfg.getDouble("salvation.beam-particles-per-meter", 2.0);
-        this.beamRaySize             = cfg.getDouble("salvation.beam-ray-size", 0.5);
+        this.beamParticlesPerMeter   = Math.max(0.0, cfg.getDouble("salvation.beam-particles-per-meter", 2.0));
+        this.beamRaySize             = Math.max(0.0, cfg.getDouble("salvation.beam-ray-size", 0.5));
     }
 
     private static Set<Action> loadClickActions(List<String> raw) {
         Set<Action> actions = EnumSet.noneOf(Action.class);
         for (String s : raw) {
-            if (s == null) continue;
+            if (s == null || s.isBlank()) continue;
             try {
                 actions.add(Action.valueOf(s.trim().toUpperCase(Locale.ROOT)));
             } catch (IllegalArgumentException ignored) {
             }
         }
         if (actions.isEmpty()) {
-            actions.add(Action.RIGHT_CLICK_AIR);
-            actions.add(Action.RIGHT_CLICK_BLOCK);
-            actions.add(Action.LEFT_CLICK_AIR);
-            actions.add(Action.LEFT_CLICK_BLOCK);
+            actions.addAll(EnumSet.allOf(Action.class));
         }
         return Collections.unmodifiableSet(actions);
     }
 
     private static Sound loadSound(String name) {
-        if (name == null || name.trim().isEmpty()) {
+        if (name == null || name.isBlank()) {
             return Sound.ENTITY_ARROW_SHOOT;
         }
-
-        String normalized = name.trim().toLowerCase(Locale.ROOT);
-
-        NamespacedKey key;
-        if (normalized.contains(":")) {
-            String[] parts = normalized.split(":", 2);
-            key = new NamespacedKey(parts[0], parts[1]);
-        } else {
-            key = NamespacedKey.minecraft(normalized);
+        try {
+            NamespacedKey key = NamespacedKey.fromString(name.trim().toLowerCase(Locale.ROOT));
+            if (key == null) return Sound.ENTITY_ARROW_SHOOT;
+            Sound sound = Registry.SOUNDS.get(key);
+            return sound != null ? sound : Sound.ENTITY_ARROW_SHOOT;
+        } catch (IllegalArgumentException e) {
+            return Sound.ENTITY_ARROW_SHOOT;
         }
-
-        Sound sound = Registry.SOUNDS.get(key);
-        return sound != null ? sound : Sound.ENTITY_ARROW_SHOOT;
     }
 
     private static Map<NamespacedKey, Integer> loadEnchantments(ConfigurationSection section) {
         Map<NamespacedKey, Integer> ench = new LinkedHashMap<>();
         if (section != null) {
             for (String key : section.getKeys(false)) {
-                String normalized = key.trim().toLowerCase(Locale.ROOT);
-                NamespacedKey nk;
-                if (normalized.contains(":")) {
-                    String[] parts = normalized.split(":", 2);
-                    nk = new NamespacedKey(parts[0], parts[1]);
-                } else {
-                    nk = NamespacedKey.minecraft(normalized);
-                }
-                ench.put(nk, section.getInt(key));
+                int level = section.getInt(key);
+                if (level < 1) continue; // Level 0 or negative removes enchantments in modern Minecraft
+                try {
+                    NamespacedKey nk = NamespacedKey.fromString(key.trim().toLowerCase(Locale.ROOT));
+                    if (nk != null) {
+                        ench.put(nk, level);
+                    }
+                } catch (IllegalArgumentException ignored) {}
             }
         }
         if (ench.isEmpty()) {
@@ -154,27 +145,27 @@ public class TerminatorConfig {
 
     private static Set<DataComponentType> loadHiddenComponents(List<String> raw) {
         Set<DataComponentType> components = new HashSet<>();
+        Registry<DataComponentType> registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.DATA_COMPONENT_TYPE);
+
         for (String s : raw) {
-            if (s == null) continue;
-            String name = s.trim().toUpperCase(Locale.ROOT);
+            if (s == null || s.isBlank()) continue;
             try {
-                Field f = DataComponentTypes.class.getField(name);
-                Object value = f.get(null);
-                if (value instanceof DataComponentType) {
-                    components.add((DataComponentType) value);
+                NamespacedKey key = NamespacedKey.fromString(s.trim().toLowerCase(Locale.ROOT));
+                if (key == null) continue;
+                DataComponentType type = registry.get(key);
+                if (type != null) {
+                    components.add(type);
                 }
-            } catch (NoSuchFieldException | IllegalAccessException ignored) {
-            }
+            } catch (IllegalArgumentException ignored) {}
         }
+
         if (components.isEmpty()) {
-            components.addAll(Arrays.asList(
-                    DataComponentTypes.UNBREAKABLE,
-                    DataComponentTypes.ENCHANTMENTS,
-                    DataComponentTypes.STORED_ENCHANTMENTS,
-                    DataComponentTypes.ATTRIBUTE_MODIFIERS,
-                    DataComponentTypes.TRIM,
-                    DataComponentTypes.DYED_COLOR
-            ));
+            components.add(DataComponentTypes.UNBREAKABLE);
+            components.add(DataComponentTypes.ENCHANTMENTS);
+            components.add(DataComponentTypes.STORED_ENCHANTMENTS);
+            components.add(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+            components.add(DataComponentTypes.TRIM);
+            components.add(DataComponentTypes.DYED_COLOR);
         }
         return Collections.unmodifiableSet(components);
     }

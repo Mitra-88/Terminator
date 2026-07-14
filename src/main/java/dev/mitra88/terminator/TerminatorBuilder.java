@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -34,39 +35,37 @@ public class TerminatorBuilder {
 
         meta.displayName(mm(config.displayName));
 
-        List<Component> lore = new ArrayList<>(config.lore.size());
-        for (String line : config.lore) {
-            lore.add(line.isEmpty() ? Component.empty() : mm(line));
+        if (!config.lore.isEmpty()) {
+            List<Component> lore = new ArrayList<>(config.lore.size());
+            for (String line : config.lore) {
+                lore.add(line.isEmpty() ? Component.empty() : mm(line));
+            }
+            meta.lore(lore);
         }
-        meta.lore(lore);
 
-        for (Map.Entry<NamespacedKey, Integer> entry : config.enchantments.entrySet()) {
-            Enchantment ench = RegistryAccess.registryAccess()
-                    .getRegistry(RegistryKey.ENCHANTMENT)
-                    .get(entry.getKey());
-            if (ench != null) {
-                meta.addEnchant(ench, entry.getValue(), true);
+        if (!config.enchantments.isEmpty()) {
+            Registry<Enchantment> enchRegistry = RegistryAccess.registryAccess()
+                    .getRegistry(RegistryKey.ENCHANTMENT);
+            for (Map.Entry<NamespacedKey, Integer> entry : config.enchantments.entrySet()) {
+                Enchantment ench = enchRegistry.get(entry.getKey());
+                if (ench != null) {
+                    meta.addEnchant(ench, entry.getValue(), true);
+                }
             }
         }
 
         meta.setUnbreakable(config.unbreakable);
+        meta.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
         terminatorBow.setItemMeta(meta);
 
-        // HOPEFULLY THIS DOESN'T BREAK! lmao
         if (!config.hiddenTooltipComponents.isEmpty()) {
-            DataComponentType[] hidden =
-                    config.hiddenTooltipComponents.toArray(new DataComponentType[0]);
             terminatorBow.setData(
                     DataComponentTypes.TOOLTIP_DISPLAY,
                     TooltipDisplay.tooltipDisplay()
-                            .addHiddenComponents(hidden)
+                            .addHiddenComponents(config.hiddenTooltipComponents.toArray(new DataComponentType[0]))
                             .build()
             );
         }
-
-        meta = terminatorBow.getItemMeta();
-        meta.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
-        terminatorBow.setItemMeta(meta);
 
         return terminatorBow;
     }
