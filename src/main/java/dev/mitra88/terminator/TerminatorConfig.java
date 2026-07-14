@@ -43,6 +43,14 @@ public class TerminatorConfig {
     public Map<NamespacedKey, Integer> enchantments;
     public Set<DataComponentType> hiddenTooltipComponents;
 
+    public int   salvationHitsRequired;
+    public double beamMaxDistance;
+    public int    beamMaxPierce;
+    public double beamDamage;
+    public long   beamCooldownMs;
+    public double beamParticlesPerMeter;
+    public double beamRaySize;
+
     public TerminatorConfig(JavaPlugin plugin) {
         reload(plugin);
     }
@@ -77,6 +85,13 @@ public class TerminatorConfig {
         this.hiddenTooltipComponents = loadHiddenComponents(
                 cfg.getStringList("item.tooltip-hidden-components")
         );
+        this.salvationHitsRequired   = cfg.getInt("salvation.hits-required", 3);
+        this.beamMaxDistance         = cfg.getDouble("salvation.beam-distance", 32.0);
+        this.beamMaxPierce           = cfg.getInt("salvation.beam-max-pierce", 5);
+        this.beamDamage              = cfg.getDouble("salvation.beam-damage", 50000.0);
+        this.beamCooldownMs          = cfg.getLong("salvation.beam-cooldown-ms", 100L);
+        this.beamParticlesPerMeter   = cfg.getDouble("salvation.beam-particles-per-meter", 2.0);
+        this.beamRaySize             = cfg.getDouble("salvation.beam-ray-size", 0.5);
     }
 
     private static Set<Action> loadClickActions(List<String> raw) {

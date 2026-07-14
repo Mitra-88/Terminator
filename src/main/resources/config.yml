@@ -86,3 +86,25 @@ item:
     - ATTRIBUTE_MODIFIERS
     - TRIM
     - DYED_COLOR
+
+salvation:
+  # Hits required to charge the beam.
+  hits-required: 3
+
+  # Beam length (blocks). Native ray-trace ceiling.
+  beam-distance: 32.0
+
+  # Maximum enemies the beam can pierce.
+  beam-max-pierce: 5
+
+  # Beam damage per enemy hit (always crits, ignores i-frames).
+  beam-damage: 50000.0
+
+  # Cooldown (ms) between Salvation beams.
+  beam-cooldown-ms: 100
+
+  # Dripping-lava particles per meter of beam trail.
+  beam-particles-per-meter: 2.0
+
+  # Ray half-width used by the entity ray-tracer (hitbox tolerance).
+  beam-ray-size: 0.5
