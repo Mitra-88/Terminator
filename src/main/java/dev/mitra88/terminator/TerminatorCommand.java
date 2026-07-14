@@ -47,7 +47,7 @@ public class TerminatorCommand implements BasicCommand {
         }
 
         ItemStack terminatorBow = TerminatorBuilder.giveTerminator(config);
-        player.getInventory().addItem(terminatorBow).forEach((index, leftover) ->
+        player.getInventory().addItem(terminatorBow).forEach((_, leftover) ->
                 player.getWorld().dropItem(player.getLocation(), leftover)
         );
         player.sendMessage(MINI_MESSAGE.deserialize("<green>You have received the Terminator."));
