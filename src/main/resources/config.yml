@@ -1,0 +1,88 @@
+# Terminator Configuration
+
+shooting:
+  # Spread (in degrees) between the center arrow and each side arrow.
+  side-spread-degrees: 10.0
+
+  # Time window (ms) during which an opposite click is blocked to suppress
+  # the vanilla bow charge when click-spamming the Terminator.
+  hold-window-ms: 250
+
+  # Cooldown (ms) between Terminator shots.
+  shoot-cooldown-ms: 200
+
+  # Velocity multiplier applied to each arrow's direction vector.
+  arrow-velocity: 4.0
+
+  # Random arrow damage range (per arrow). Use equal values to make it fixed.
+  arrow-damage-min: 20000.0
+  arrow-damage-max: 50000.0
+
+  # Click actions that trigger the Terminator.
+  # Valid values: RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK, LEFT_CLICK_AIR, LEFT_CLICK_BLOCK, PHYSICAL
+  click-actions:
+    - RIGHT_CLICK_AIR
+    - RIGHT_CLICK_BLOCK
+    - LEFT_CLICK_AIR
+    - LEFT_CLICK_BLOCK
+
+  # Sound played on each shot.
+  shoot-sound: ENTITY_ARROW_SHOOT
+  shoot-sound-volume: 1.0
+  shoot-sound-pitch: 1.0
+
+item:
+  # Base material of the Terminator item.
+  material: BOW
+
+  # MiniMessage-formatted display name.
+  display-name: "<light_purple>Precise Terminator <gold>✪✪✪✪<red>➎"
+
+  # MiniMessage-formatted lore lines. Use an empty string for a blank line.
+  lore:
+    - "<gray>Gear Score: <light_purple>1042 <dark_gray>(4163)"
+    - "<gray>Damage: <red>374 <yellow>(+30) <dark_gray>(+1,958.53)"
+    - "<gray>Strength: <red>110 <yellow>(+30) <gold>[+5] <blue>(+20) <dark_gray>(+599.55)"
+    - "<gray>Crit Chance: <red>+68% <blue>(+60%) <dark_gray>(+104.04%)"
+    - "<gray>Crit Damage: <red>+280% <dark_gray>(+1,456.05%)"
+    - "<gray>Bonus Attack Speed: <red>+44% <dark_gray>(+61.2%)"
+    - "<gray>Shot Cooldown: <green>0.2s"
+    - ""
+    - "<light_purple><bold>Soul Eater V <blue>Chance V, Cubism VI"
+    - "<blue>Dragon Hunter V, Dragon Tracer V, Flame II"
+    - "<blue>Impaling III, Infinite Quiver X, Overload V"
+    - "<blue>Piercing I, Power VII, Punch II"
+    - "<blue>Snipe IV, Vicious V, Gravity VI, Tabasco III"
+    - ""
+    - "<gray>Shoots <aqua>3 <gray>arrows at once."
+    - "<gray>Can damage enderman."
+    - ""
+    - "<red>Divides your <blue>☣ Crit Chance <red>by 4!"
+    - ""
+    - "<gold>Ability: Salvation <yellow><bold>LEFT CLICK"
+    - "<gray>Can be casted after landing <gold><bold>3 <gray>hits."
+    - "<gray>Shoot a beam, penetrating up to <yellow>5"
+    - "<gray>enemies."
+    - "<gray>The beam always crits."
+    - "<dark_gray>Soulflow Cost: <dark_aqua>1⸎"
+    - ""
+    - "<light_purple>Shortbow: Instantly shoots!"
+    - ""
+    - "<light_purple><bold><obfuscated>A</obfuscated> MYTHIC DUNGEON BOW <obfuscated>A</obfuscated>"
+
+  # Whether the item is unbreakable.
+  unbreakable: true
+
+  # Enchantments applied to the item. Keys are namespaced IDs.
+  enchantments:
+    minecraft:unbreaking: 100
+
+  # Data component types hidden from the tooltip. Names must match a public
+  # static field on io.papermc.paper.datacomponent.DataComponentTypes.
+  tooltip-hidden-components:
+    - UNBREAKABLE
+    - ENCHANTMENTS
+    - STORED_ENCHANTMENTS
+    - ATTRIBUTE_MODIFIERS
+    - TRIM
+    - DYED_COLOR

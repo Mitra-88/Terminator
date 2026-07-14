@@ -8,18 +8,30 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class Terminator extends JavaPlugin {
 
     public static NamespacedKey TERMINATOR_KEY;
+    private TerminatorConfig config;
 
     @Override
     public void onEnable() {
         TERMINATOR_KEY = new NamespacedKey(this, "terminator");
-        getServer().getPluginManager().registerEvents(new TerminatorEventListener(this), this);
+        saveDefaultConfig();
+
+        config = new TerminatorConfig(this);
+
+        getServer().getPluginManager().registerEvents(new TerminatorEventListener(this, config), this);
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             final Commands commands = event.registrar();
+
             commands.register(
                     "giveterminator",
                     "Gives the Terminator item to the player.",
-                    new TerminatorCommand()
+                    new TerminatorCommand(this, config, false)
+            );
+
+            commands.register(
+                    "terminatorreload",
+                    "Reloads the Terminator configuration.",
+                    new TerminatorCommand(this, config, true)
             );
         });
     }

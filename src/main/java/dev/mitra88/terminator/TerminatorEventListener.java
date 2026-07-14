@@ -1,9 +1,7 @@
 package dev.mitra88.terminator;
 
-import org.bukkit.Sound;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Enderman;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,28 +11,16 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class TerminatorEventListener implements Listener {
 
-    private static final Set<Action> CLICK_ACTIONS = EnumSet.of(
-            Action.RIGHT_CLICK_AIR, Action.RIGHT_CLICK_BLOCK,
-            Action.LEFT_CLICK_AIR, Action.LEFT_CLICK_BLOCK
-    );
-
-    private static final float SIDE_SPREAD_DEGREES = 10f;
-    private static final long HOLD_WINDOW_MS = 250;
-    private static final long SHOOT_COOLDOWN_MS = 200;
-
-    private final Terminator plugin;
+    private final TerminatorConfig config;
 
     private enum ClickSide { NONE, LEFT, RIGHT }
 
@@ -46,8 +32,8 @@ public class TerminatorEventListener implements Listener {
     private final Map<UUID, HoldState> holdMap = new HashMap<>();
     private final Map<UUID, Long> shootCooldown = new HashMap<>();
 
-    public TerminatorEventListener(Terminator plugin) {
-        this.plugin = plugin;
+    public TerminatorEventListener(Terminator ignoredPlugin, TerminatorConfig config) {
+        this.config = config;
     }
 
     private static ClickSide sideFromAction(Action a) {
@@ -66,7 +52,7 @@ public class TerminatorEventListener implements Listener {
     private void setHold(Player p, ClickSide side) {
         HoldState st = holdMap.computeIfAbsent(p.getUniqueId(), _ -> new HoldState());
         st.lastSide = side;
-        st.untilMs = System.currentTimeMillis() + HOLD_WINDOW_MS;
+        st.untilMs = System.currentTimeMillis() + config.holdWindowMs;
     }
 
     private static Vector dirFromYawPitch(float yawDeg, float pitchDeg) {
@@ -80,10 +66,21 @@ public class TerminatorEventListener implements Listener {
 
     private void shootArrow(Player player, Vector direction) {
         Arrow arrow = player.launchProjectile(Arrow.class);
-        arrow.setCritical(true);
-        arrow.setVelocity(direction.multiply(4));
-        arrow.setDamage(ThreadLocalRandom.current().nextDouble(20000, 50000));
-        player.playSound(player.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1.0f, 1.0f);
+        arrow.setVelocity(direction.multiply(config.arrowVelocity));
+
+        double min = Math.min(config.arrowDamageMin, config.arrowDamageMax);
+        double max = Math.max(config.arrowDamageMin, config.arrowDamageMax);
+        double damage = (min >= max) ? min : ThreadLocalRandom.current().nextDouble(min, max);
+        arrow.setDamage(damage);
+
+        arrow.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
+
+        player.playSound(
+                player.getLocation(),
+                config.shootSound,
+                config.shootSoundVolume,
+                config.shootSoundPitch
+        );
     }
 
     @EventHandler
@@ -96,7 +93,7 @@ public class TerminatorEventListener implements Listener {
         if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) return;
 
         Action action = event.getAction();
-        if (!CLICK_ACTIONS.contains(action)) return;
+        if (!config.clickActions.contains(action)) return;
 
         Player p = event.getPlayer();
         ClickSide incomingSide = sideFromAction(action);
@@ -108,7 +105,7 @@ public class TerminatorEventListener implements Listener {
 
         long now = System.currentTimeMillis();
         long lastShoot = shootCooldown.getOrDefault(p.getUniqueId(), 0L);
-        if (now - lastShoot < SHOOT_COOLDOWN_MS) {
+        if (now - lastShoot < config.shootCooldownMs) {
             event.setCancelled(true);
             return;
         }
@@ -118,28 +115,25 @@ public class TerminatorEventListener implements Listener {
 
         float yaw = p.getLocation().getYaw();
         float pitch = p.getLocation().getPitch();
+        final float spread = config.sideSpreadDegrees;
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                shootArrow(p, dirFromYawPitch(yaw, pitch));                          // center
-                shootArrow(p, dirFromYawPitch(yaw + SIDE_SPREAD_DEGREES, pitch));    // right
-                shootArrow(p, dirFromYawPitch(yaw - SIDE_SPREAD_DEGREES, pitch));    // left
-                setHold(p, incomingSide);
-            }
-        }.runTask(plugin);
+        shootArrow(p, dirFromYawPitch(yaw, pitch));                     // center
+        shootArrow(p, dirFromYawPitch(yaw + spread, pitch));    // right
+        shootArrow(p, dirFromYawPitch(yaw - spread, pitch));    // left
+        setHold(p, incomingSide);
     }
 
     @EventHandler
     public void onProjectileHit(ProjectileHitEvent event) {
-        if (event.getEntity() instanceof Arrow arrow && arrow.getShooter() instanceof Player shooter) {
-            for (Entity entity : arrow.getNearbyEntities(3, 3, 3)) {
-                if (entity instanceof Enderman enderman) {
-                    enderman.damage(arrow.getDamage(), shooter);
-                    arrow.remove();
-                    break;
-                }
-            }
+        if (!(event.getEntity() instanceof Arrow arrow)) return;
+        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) return;
+        if (event.getHitBlock() != null) {
+            arrow.remove();
+            return;
+        }
+        if (event.getHitEntity() instanceof Enderman enderman) {
+            enderman.damage(arrow.getDamage(), (Player) arrow.getShooter());
+            arrow.remove();
         }
     }
 }

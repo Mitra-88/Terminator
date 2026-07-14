@@ -25,7 +25,7 @@ Terminator is a plugin inspired by the [Terminator](https://wiki.hypixel.net/Ter
 - There are no permissions. All players can get and use the Terminator.
 
 ## License
-- This plugin is licensed under the [GNU General Public License v3.0](LICENSE).
+- This plugin is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 ## Credits
 - Icon: [Furfsky](https://furfsky.net/)

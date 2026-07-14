@@ -6,11 +6,10 @@ load: STARTUP
 authors: [Mitra-88]
 description: Terminator is a plugin inspired by the Terminator from Hypixel Skyblock.
 website: https://github.com/Mitra-88/Terminator
-commands:
-  giveterminator:
-    usage: /giveterminator
-    description: Gives the Terminator item to the player.
 permissions:
   terminator.give:
     default: true
     description: Allows players to use the /giveterminator command.
+  terminator.reload:
+    default: op
+    description: Allows players to use the /terminatorreload command.
