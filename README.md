@@ -11,18 +11,25 @@ Terminator is a plugin inspired by the [Terminator](https://wiki.hypixel.net/Ter
 ## Usage
 ### Installation
 1. Download the latest stable release from [here](https://github.com/VermeilChan/Terminator/releases/latest).
-2. Place the JAR file in the `plugins` folder in your Minecraft server directory.
-3. Restart or reload your server to activate the plugin.
+2. Drop the JAR into `plugins/`
+3. Start the server
+4. Edit `plugins/Terminator/config.yml` if desired
+5. Done.
 
-### In-Game
-1. **Obtaining the Terminator:**
-   - Anyone can give themselves the Terminator by using the command /giveterminator.
-2. **Using the Terminator:**
-   - Just Hold RIGHT CLICK or spam LEFT CLICK.<br>
-   _May require you to be in game mode survival and have no arrows in your inventory._
+## In-Game
 
-## Permissions
-- There are no permissions. All players can get and use the Terminator.
+| Command             | Description                        | Permission          |
+|---------------------|------------------------------------|---------------------|
+| `/giveterminator`   | Gives the player a Terminator bow. | `terminator.give`   |
+| `/terminatorreload` | Reloads the plugin configuration.  | `terminator.reload` |
+
+### Firing Modes
+
+* **Hold Right Click** — Automatic fire.
+* **Spam Left Click** — Rapid fire.
+
+> **Compatibility Note**
+> On modern Minecraft versions, **Survival mode** and **having no arrows** are generally **not required**, but if the bow behaves unexpectedly, try both first.
 
 ## License
 - This plugin is licensed under the [GNU Affero General Public License v3.0](LICENSE).
