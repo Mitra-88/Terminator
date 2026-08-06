@@ -22,7 +22,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-@SuppressWarnings("UnstableApiUsage")
 public final class TerminatorConfig {
 
     public float sideSpreadDegrees;
