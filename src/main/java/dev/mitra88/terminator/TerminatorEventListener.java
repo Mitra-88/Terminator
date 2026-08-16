@@ -126,7 +126,7 @@ public final class TerminatorEventListener implements Listener {
             return;
         }
 
-        PlayerState state = states.computeIfAbsent(player.getUniqueId(), unused -> new PlayerState());
+        PlayerState state = states.computeIfAbsent(player.getUniqueId(), _ -> new PlayerState());
 
         if (now < state.holdUntilMs && state.lastSide != side) {
             event.setCancelled(true);
