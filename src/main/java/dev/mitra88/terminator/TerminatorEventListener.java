@@ -24,22 +24,23 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Predicate;
 
 public final class TerminatorEventListener implements Listener {
 
     private final TerminatorConfig config;
 
-    private enum ClickSide { LEFT, RIGHT }
+    private enum ClickSide {LEFT, RIGHT}
 
     private static final class PlayerState {
         ClickSide lastSide;
@@ -67,16 +68,16 @@ public final class TerminatorEventListener implements Listener {
         beamCooldown.defaultReturnValue(0L);
     }
 
-    private static ClickSide sideFromAction(Action a) {
-        return (a == Action.RIGHT_CLICK_AIR || a == Action.RIGHT_CLICK_BLOCK)
+    private static ClickSide sideFromAction(Action action) {
+        return (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)
                 ? ClickSide.RIGHT
                 : ClickSide.LEFT;
     }
 
     private static Vector dirFromYawPitch(float yawDeg, float pitchDeg) {
-        double yaw   = Math.toRadians(yawDeg);
+        double yaw = Math.toRadians(yawDeg);
         double pitch = Math.toRadians(pitchDeg);
-        double cosP  = Math.cos(pitch);
+        double cosP = Math.cos(pitch);
         return new Vector(-cosP * Math.sin(yaw), -Math.sin(pitch), cosP * Math.cos(yaw));
     }
 
@@ -84,6 +85,7 @@ public final class TerminatorEventListener implements Listener {
         Arrow arrow = player.getWorld().spawnArrow(
                 player.getEyeLocation(), direction,
                 (float) config.arrowVelocity, 0f);
+
         arrow.setShooter(player);
 
         double min = Math.min(config.arrowDamageMin, config.arrowDamageMax);
@@ -98,74 +100,76 @@ public final class TerminatorEventListener implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         ItemStack item = event.getItem();
-        if (item == null) return;
+        if (item == null || !item.hasItemMeta()) return;
         ItemMeta meta = item.getItemMeta();
-        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) return;
+        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
+            return;
+        }
 
         Action action = event.getAction();
         if (!config.clickActions.contains(action)) return;
 
-        Player p = event.getPlayer();
-        int id = p.getEntityId();
+        Player player = event.getPlayer();
+        int id = player.getEntityId();
         long now = System.currentTimeMillis();
         ClickSide side = sideFromAction(action);
 
         if (side == ClickSide.LEFT && hitCounter.get(id) >= config.salvationHitsRequired) {
+            event.setCancelled(true);
             if (now - beamCooldown.get(id) < config.beamCooldownMs) {
-                event.setCancelled(true);
                 return;
             }
-            event.setCancelled(true);
+
             beamCooldown.put(id, now);
             hitCounter.put(id, 0);
-            fireSalvationBeam(p);
+            fireSalvationBeam(player);
             return;
         }
 
-        PlayerState st = states.computeIfAbsent(p.getUniqueId(), _ -> new PlayerState());
+        PlayerState state = states.computeIfAbsent(player.getUniqueId(), unused -> new PlayerState());
 
-        if (now < st.holdUntilMs && st.lastSide != side) {
+        if (now < state.holdUntilMs && state.lastSide != side) {
             event.setCancelled(true);
             return;
         }
 
-        if (now < st.shootCooldownUntilMs) {
+        if (now < state.shootCooldownUntilMs) {
             event.setCancelled(true);
             return;
         }
 
         event.setCancelled(true);
-        st.shootCooldownUntilMs = now + config.shootCooldownMs;
-        st.lastSide = side;
-        st.holdUntilMs = now + config.holdWindowMs;
+        state.shootCooldownUntilMs = now + config.shootCooldownMs;
+        state.lastSide = side;
+        state.holdUntilMs = now + config.holdWindowMs;
 
-        Location loc = p.getLocation();
-        float yaw = loc.getYaw();
-        float pitch = loc.getPitch();
-        final float spread = config.sideSpreadDegrees;
+        Location location = player.getLocation();
+        float yaw = location.getYaw();
+        float pitch = location.getPitch();
+        float spread = config.sideSpreadDegrees;
 
-        shootArrow(p, dirFromYawPitch(yaw, pitch));                      // center
-        shootArrow(p, dirFromYawPitch(yaw + spread, pitch));     // right
-        shootArrow(p, dirFromYawPitch(yaw - spread, pitch));     // left
+        shootArrow(player, dirFromYawPitch(yaw, pitch));
+        shootArrow(player, dirFromYawPitch(yaw + spread, pitch));
+        shootArrow(player, dirFromYawPitch(yaw - spread, pitch));
     }
 
     @EventHandler
     public void onProjectileHit(ProjectileHitEvent event) {
         if (!(event.getEntity() instanceof Arrow arrow)) return;
-        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) return;
+
+        if (!(arrow.getShooter() instanceof Player shooter)) return;
+
+        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
+            return;
+        }
 
         if (event.getHitBlock() != null) {
             arrow.remove();
             return;
         }
 
-        Entity hitEnt = event.getHitEntity();
-        if (!(hitEnt instanceof LivingEntity target)) {
-            arrow.remove();
-            return;
-        }
-
-        if (!(arrow.getShooter() instanceof Player shooter)) {
+        Entity hitEntity = event.getHitEntity();
+        if (!(hitEntity instanceof LivingEntity target)) {
             arrow.remove();
             return;
         }
@@ -178,95 +182,181 @@ public final class TerminatorEventListener implements Listener {
         onSalvationHit(shooter);
     }
 
-    private void onSalvationHit(Player p) {
-        int id = p.getEntityId();
+    private void onSalvationHit(Player player) {
+        int id = player.getEntityId();
         int current = hitCounter.get(id);
         if (current >= config.salvationHitsRequired) return;
 
         int next = current + 1;
         hitCounter.put(id, next);
 
-        Component msg = switch (next) {
+        Component message = switch (next) {
             case 1 -> AB_T1;
             case 2 -> AB_T2;
             default -> AB_T3;
         };
-        p.sendActionBar(msg);
+        player.sendActionBar(message);
     }
 
     private void fireSalvationBeam(Player player) {
         Location eye = player.getEyeLocation();
         World world = eye.getWorld();
         Vector origin = eye.toVector();
-        Vector dir = eye.getDirection();
+        Vector direction = eye.getDirection();
 
-        final double maxDist = config.beamMaxDistance;
-        final double raySize = config.beamRaySize;
-        final int maxPierce = config.beamMaxPierce;
+        double maxDistance = Math.max(0.0, config.beamMaxDistance);
+        double raySize = Math.max(0.0, config.beamRaySize);
+        int maxPierce = Math.max(0, config.beamMaxPierce);
 
-        RayTraceResult blockHit = world.rayTraceBlocks(eye, dir, maxDist, FluidCollisionMode.NEVER, false);
-        final double limit = blockHit != null ? origin.distance(blockHit.getHitPosition()) : maxDist;
+        RayTraceResult blockHit = world.rayTraceBlocks(
+                eye, direction, maxDistance, FluidCollisionMode.NEVER, false
+        );
 
-        spawnLavaTrail(world, origin, dir, limit);
+        double limit = blockHit != null
+                ? origin.distance(blockHit.getHitPosition())
+                : maxDistance;
 
-        final double ox = origin.getX(), oy = origin.getY(), oz = origin.getZ();
-        final double dx = dir.getX(), dy = dir.getY(), dz = dir.getZ();
-        double cx = ox, cy = oy, cz = oz;
+        spawnLavaTrail(player, origin, direction, limit);
 
-        final Location cursorLoc = new Location(world, ox, oy, oz);
-        final Set<Entity> alreadyHit = new HashSet<>(maxPierce);
-        final Predicate<Entity> filter = e -> e != player
-                && e instanceof LivingEntity
-                && !(e instanceof ArmorStand)
-                && !alreadyHit.contains(e);
+        List<LivingEntity> targets = findBeamTargets(
+                world, eye, origin,
+                direction, limit, raySize,
+                maxPierce, player
+        );
 
-        for (int pierced = 0; pierced < maxPierce; pierced++) {
-            double traveled = (cx - ox) * dx + (cy - oy) * dy + (cz - oz) * dz;
-            if (traveled >= limit) break;
+        for (LivingEntity target : targets) {
+            int oldMaxNoDamageTicks = target.getMaximumNoDamageTicks();
 
-            cursorLoc.setX(cx);
-            cursorLoc.setY(cy);
-            cursorLoc.setZ(cz);
-
-            RayTraceResult r = world.rayTraceEntities(cursorLoc, dir, limit - traveled, raySize, filter);
-            if (r == null) break;
-            Entity ent = r.getHitEntity();
-            if (ent == null) break;
-
-            alreadyHit.add(ent);
-            LivingEntity le = (LivingEntity) ent;
-
-            int oldMax = le.getMaximumNoDamageTicks();
-            le.setMaximumNoDamageTicks(0);
-            le.setNoDamageTicks(0);
-            le.damage(config.beamDamage, player);
-            le.setMaximumNoDamageTicks(oldMax);
-
-            Vector hitPos = r.getHitPosition();
-            cx = hitPos.getX() + dx * 0.5;
-            cy = hitPos.getY() + dy * 0.5;
-            cz = hitPos.getZ() + dz * 0.5;
+            target.setMaximumNoDamageTicks(0);
+            target.setNoDamageTicks(0);
+            target.damage(config.beamDamage, player);
+            target.setMaximumNoDamageTicks(oldMaxNoDamageTicks);
         }
     }
 
-    private void spawnLavaTrail(World world, Vector origin, Vector dir, double length) {
+    private List<LivingEntity> findBeamTargets(
+            World world,
+            Location eye,
+            Vector origin,
+            Vector direction,
+            double limit,
+            double raySize,
+            int maxPierce,
+            Player player
+    ) {
+        if (limit <= 0.0 || maxPierce <= 0) {
+            return new ArrayList<>(0);
+        }
+
+        Vector end = origin.clone().add(direction.clone().multiply(limit));
+
+        BoundingBox beamBox = new BoundingBox(
+                Math.min(origin.getX(), end.getX()) - raySize,
+                Math.min(origin.getY(), end.getY()) - raySize,
+                Math.min(origin.getZ(), end.getZ()) - raySize,
+                Math.max(origin.getX(), end.getX()) + raySize,
+                Math.max(origin.getY(), end.getY()) + raySize,
+                Math.max(origin.getZ(), end.getZ()) + raySize
+        );
+
+        Collection<Entity> nearby = world.getNearbyEntities(beamBox);
+        if (nearby.isEmpty()) {
+            return new ArrayList<>(0);
+        }
+
+        List<LivingEntity> candidates = new ArrayList<>();
+
+        for (Entity entity : nearby) {
+            if (!(entity instanceof LivingEntity living)) continue;
+            if (living instanceof ArmorStand) continue;
+            if (living.getEntityId() == player.getEntityId()) continue;
+
+            BoundingBox entityBox = expandBox(living.getBoundingBox(), raySize);
+
+            if (entityBox.rayTrace(origin, direction, limit) != null) {
+                candidates.add(living);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            return candidates;
+        }
+
+        Location tempLoc = new Location(world, 0, 0, 0);
+
+        candidates.sort((e1, e2) -> {
+            e1.getLocation(tempLoc);
+            double dist1 = tempLoc.distanceSquared(eye);
+
+            e2.getLocation(tempLoc);
+            double dist2 = tempLoc.distanceSquared(eye);
+
+            return Double.compare(dist1, dist2);
+        });
+
+        if (candidates.size() <= maxPierce) {
+            return candidates;
+        }
+
+        List<LivingEntity> finalTargets = new ArrayList<>(maxPierce);
+
+        for (int i = 0; i < maxPierce; i++) {
+            finalTargets.add(candidates.get(i));
+        }
+
+        return finalTargets;
+    }
+
+    private static BoundingBox expandBox(BoundingBox box, double amount) {
+        if (amount <= 0.0) return box;
+
+        return new BoundingBox(
+                box.getMinX() - amount,
+                box.getMinY() - amount,
+                box.getMinZ() - amount,
+                box.getMaxX() + amount,
+                box.getMaxY() + amount,
+                box.getMaxZ() + amount
+        );
+    }
+
+    private void spawnLavaTrail(Player player, Vector origin, Vector direction, double length) {
+        if (length <= 0.0) return;
+
         int count = Math.max(1, (int) (length * config.beamParticlesPerMeter));
         double step = length / count;
-        double x = origin.getX(), y = origin.getY(), z = origin.getZ();
-        double dx = dir.getX() * step, dy = dir.getY() * step, dz = dir.getZ() * step;
+
+        double x = origin.getX();
+        double y = origin.getY();
+        double z = origin.getZ();
+
+        double dx = direction.getX() * step;
+        double dy = direction.getY() * step;
+        double dz = direction.getZ() * step;
+
+        Location location = new Location(player.getWorld(), x, y, z);
+
         for (int i = 0; i < count; i++) {
-            world.spawnParticle(Particle.DRIPPING_LAVA, x, y, z, 1, 0.02, 0.02, 0.02, 0.0);
-            x += dx; y += dy; z += dz;
+            player.spawnParticle(Particle.DRIPPING_LAVA, location, 1, 0.02, 0.02, 0.02, 0.0);
+
+            x += dx;
+            y += dy;
+            z += dz;
+
+            location.setX(x);
+            location.setY(y);
+            location.setZ(z);
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        Player p = event.getPlayer();
-        int id = p.getEntityId();
+        Player player = event.getPlayer();
+        int id = player.getEntityId();
+
         hitCounter.remove(id);
         beamCooldown.remove(id);
-        states.remove(p.getUniqueId());
+        states.remove(player.getUniqueId());
     }
 
     public void cleanup() {
