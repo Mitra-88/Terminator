@@ -69,7 +69,7 @@ public final class TerminatorConfig {
         this.arrowDamageMax       = cfg.getDouble("shooting.arrow-damage-max", 50000.0);
         this.clickActions         = loadClickActions(cfg.getStringList("shooting.click-actions"));
 
-        this.shootSound           = loadSound(cfg.getString("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"));
+        this.shootSound           = SoundRegistryMapper.get(cfg.getString("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"), Sound.ENTITY_ARROW_SHOOT);
         this.shootSoundVolume     = (float) cfg.getDouble("shooting.shoot-sound-volume", 1.0);
         this.shootSoundPitch      = (float) cfg.getDouble("shooting.shoot-sound-pitch", 1.0);
 
@@ -102,14 +102,6 @@ public final class TerminatorConfig {
         }
         if (actions.isEmpty()) actions = EnumSet.allOf(Action.class);
         return Collections.unmodifiableSet(actions);
-    }
-
-    private static Sound loadSound(String name) {
-        if (name == null || name.isBlank()) return Sound.ENTITY_ARROW_SHOOT;
-        NamespacedKey key = parseKey(name);
-        if (key == null) return Sound.ENTITY_ARROW_SHOOT;
-        Sound sound = Registry.SOUNDS.get(key);
-        return sound != null ? sound : Sound.ENTITY_ARROW_SHOOT;
     }
 
     private static Map<NamespacedKey, Integer> loadEnchantments(ConfigurationSection section) {
