@@ -14,9 +14,11 @@
   <properties>
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <minecraft.version>26.2</minecraft.version>
   </properties>
 
   <build>
+    <finalName>${project.artifactId}-${project.version}-mc${minecraft.version}</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
