@@ -5,11 +5,13 @@ import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Enderman;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -42,32 +44,6 @@ public final class TerminatorEventListener implements Listener {
         this.salvationBeam = salvationBeam;
     }
 
-    private static ClickSide sideFromAction(Action action) {
-        return (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) ? ClickSide.RIGHT : ClickSide.LEFT;
-    }
-
-    private static Vector dirFromYawPitch(float yawDeg, float pitchDeg) {
-        double yaw = Math.toRadians(yawDeg);
-        double pitch = Math.toRadians(pitchDeg);
-        double cosP = Math.cos(pitch);
-        return new Vector(-cosP * Math.sin(yaw), -Math.sin(pitch), cosP * Math.cos(yaw));
-    }
-
-    private void shootArrow(Player player, Vector direction) {
-        Vector velocity = direction.clone().multiply(config.arrowVelocity);
-        Arrow arrow = player.launchProjectile(Arrow.class, velocity);
-
-        arrow.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
-
-        double min = Math.min(config.arrowDamageMin, config.arrowDamageMax);
-        double max = Math.max(config.arrowDamageMin, config.arrowDamageMax);
-        arrow.setDamage((min >= max) ? min : ThreadLocalRandom.current().nextDouble(min, max));
-
-        arrow.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
-
-        player.playSound(player.getLocation(), config.shootSound, config.shootSoundVolume, config.shootSoundPitch);
-    }
-
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (Terminator.terminatorMeta(event.getItem()) == null) return;
@@ -75,14 +51,10 @@ public final class TerminatorEventListener implements Listener {
         Action action = event.getAction();
         if (!config.clickActions.contains(action)) return;
 
-        Player player = event.getPlayer();
-        ClickSide side = sideFromAction(action);
-
         event.setCancelled(true);
-        event.setUseItemInHand(PlayerInteractEvent.Result.DENY);
-        player.clearActiveItem();
+        event.getPlayer().clearActiveItem();
 
-        handleTerminatorClick(player, side);
+        handleTerminatorClick(event.getPlayer(), sideFromAction(action));
     }
 
     @EventHandler
@@ -98,10 +70,9 @@ public final class TerminatorEventListener implements Listener {
 
     @EventHandler
     public void onEntityShootBow(EntityShootBowEvent event) {
-        if (!(event.getEntity() instanceof Player)) return;
-        if (Terminator.terminatorMeta(event.getBow()) == null) return;
-
-        event.setCancelled(true);
+        if (event.getEntity() instanceof Player && Terminator.terminatorMeta(event.getBow()) != null) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler
@@ -109,55 +80,61 @@ public final class TerminatorEventListener implements Listener {
         if (!(event.getEntity() instanceof Arrow arrow)) return;
         if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY)) return;
 
-        Player shooter = (arrow.getShooter() instanceof Player player) ? player : null;
-        boolean shooterOnline = shooter != null && shooter.isOnline();
-
-        if (shooterOnline && event.getHitEntity() instanceof Enderman enderman) {
-            enderman.damage(arrow.getDamage(), shooter);
-        }
+        double arrowDamage = arrow.getDamage();
+        Entity hitEntity = event.getHitEntity();
+        Player shooter = arrow.getShooter() instanceof Player player ? player : null;
 
         arrow.remove();
 
-        if (shooterOnline
-                && event.getHitEntity() instanceof LivingEntity target
-                && !(target instanceof ArmorStand)) {
+        if (hitEntity == null) return;
+        if (shooter == null || !shooter.isOnline()) return;
+
+        if (hitEntity instanceof Enderman enderman) {
+            enderman.damage(arrowDamage, shooter);
+        }
+
+        if (hitEntity instanceof LivingEntity target && !(target instanceof ArmorStand)) {
             salvationBeam.onArrowHit(shooter);
         }
     }
 
+    @EventHandler(ignoreCancelled = true)
+    public void onArrowSelfDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Arrow arrow)) return;
+        if (!(event.getEntity() instanceof Player victim)) return;
+        if (arrow.getShooter() != victim) return;
+        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY)) return;
+
+        event.setCancelled(true);
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        salvationBeam.onQuit(player);
-        states.remove(player.getUniqueId());
+        states.remove(event.getPlayer().getUniqueId());
+        salvationBeam.onQuit(event.getPlayer());
     }
 
     public void cleanup() {
-        salvationBeam.cleanup();
         states.clear();
+        salvationBeam.cleanup();
     }
 
     private boolean isLeftClickEnabled() {
-        return config.clickActions.contains(Action.LEFT_CLICK_AIR)
-                || config.clickActions.contains(Action.LEFT_CLICK_BLOCK);
+        return config.clickActions.contains(Action.LEFT_CLICK_AIR) || config.clickActions.contains(Action.LEFT_CLICK_BLOCK);
     }
 
     private void handleTerminatorClick(Player player, ClickSide side) {
-        if (side == ClickSide.LEFT && salvationBeam.canFireBeam(player)) {
-            salvationBeam.tryFireBeam(player);
-            return;
-        }
-
         long now = System.currentTimeMillis();
-        PlayerState state = states.computeIfAbsent(player.getUniqueId(), _ -> new PlayerState());
 
-        if (now < state.holdUntilMs && state.lastSide != side) {
+        if (side == ClickSide.LEFT && salvationBeam.tryFireBeam(player)) {
+            touchState(player).shootCooldownUntilMs = now + config.shootCooldownMs;
             return;
         }
 
-        if (now < state.shootCooldownUntilMs) {
-            return;
-        }
+        PlayerState state = touchState(player);
+
+        if (now < state.holdUntilMs && state.lastSide != side) return;
+        if (now <= state.shootCooldownUntilMs) return;
 
         state.shootCooldownUntilMs = now + config.shootCooldownMs;
         state.lastSide = side;
@@ -171,5 +148,37 @@ public final class TerminatorEventListener implements Listener {
         shootArrow(player, dirFromYawPitch(yaw, pitch));
         shootArrow(player, dirFromYawPitch(yaw + spread, pitch));
         shootArrow(player, dirFromYawPitch(yaw - spread, pitch));
+    }
+
+    private PlayerState touchState(Player player) {
+        return states.computeIfAbsent(player.getUniqueId(), _ -> new PlayerState());
+    }
+
+    private void shootArrow(Player player, Vector direction) {
+        Arrow arrow = player.launchProjectile(Arrow.class, direction.clone().multiply(config.arrowVelocity));
+
+        arrow.setPickupStatus(Arrow.PickupStatus.DISALLOWED);
+        arrow.setCritical(config.criticalArrows);
+        arrow.setDamage(randomArrowDamage());
+        arrow.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
+
+        player.playSound(player.getLocation(), config.shootSound, config.shootSoundVolume, config.shootSoundPitch);
+    }
+
+    private double randomArrowDamage() {
+        double min = Math.min(config.arrowDamageMin, config.arrowDamageMax);
+        double max = Math.max(config.arrowDamageMin, config.arrowDamageMax);
+        return min >= max ? min : ThreadLocalRandom.current().nextDouble(min, max);
+    }
+
+    private static ClickSide sideFromAction(Action action) {
+        return action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK ? ClickSide.RIGHT : ClickSide.LEFT;
+    }
+
+    private static Vector dirFromYawPitch(float yawDeg, float pitchDeg) {
+        double yaw = Math.toRadians(yawDeg);
+        double pitch = Math.toRadians(pitchDeg);
+        double cosPitch = Math.cos(pitch);
+        return new Vector(-cosPitch * Math.sin(yaw), -Math.sin(pitch), cosPitch * Math.cos(yaw));
     }
 }

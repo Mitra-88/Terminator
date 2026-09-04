@@ -6,7 +6,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public final class Terminator extends JavaPlugin {
 
@@ -23,17 +23,12 @@ public final class Terminator extends JavaPlugin {
         SalvationBeamAbility salvationBeam = new SalvationBeamAbility(config);
         listener = new TerminatorEventListener(config, salvationBeam);
         getServer().getPluginManager().registerEvents(listener, this);
-
         getServer().getPluginManager().registerEvents(new SoulEaterAbility(this), this);
 
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
-            commands.register("giveterminator",
-                    "Gives the Terminator item to the player.",
-                    new TerminatorCommand(config, listener, false));
-            commands.register("terminatorreload",
-                    "Reloads the Terminator configuration.",
-                    new TerminatorCommand(config, listener, true));
+            commands.register("giveterminator", "Gives the Terminator item to the player.", new TerminatorCommand(config, listener, false));
+            commands.register("terminatorreload", "Reloads the Terminator configuration.", new TerminatorCommand(config, listener, true));
         });
     }
 
@@ -46,7 +41,6 @@ public final class Terminator extends JavaPlugin {
     public static ItemMeta terminatorMeta(@Nullable ItemStack item) {
         if (item == null || item.getType().isAir()) return null;
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return null;
-        return meta.getPersistentDataContainer().has(TERMINATOR_KEY) ? meta : null;
+        return meta != null && meta.getPersistentDataContainer().has(TERMINATOR_KEY) ? meta : null;
     }
 }

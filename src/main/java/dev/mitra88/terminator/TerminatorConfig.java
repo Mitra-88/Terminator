@@ -61,6 +61,7 @@ public final class TerminatorConfig {
     public double arrowVelocity;
     public double arrowDamageMin;
     public double arrowDamageMax;
+    public boolean criticalArrows;
     public Set<Action> clickActions;
     public Sound shootSound;
     public float shootSoundVolume;
@@ -91,47 +92,45 @@ public final class TerminatorConfig {
     public void reload() {
         plugin.reloadConfig();
         ConfigReader cfg = new ConfigReader(plugin.getConfig(), plugin.getLogger());
-        Logger log = plugin.getLogger();
-        readShooting(cfg, log);
-        readItem(cfg, log);
+        readShooting(cfg);
+        readItem(cfg);
         readSalvation(cfg);
     }
 
-    private void readShooting(ConfigReader cfg, Logger log) {
+    private void readShooting(ConfigReader cfg) {
         sideSpreadDegrees = (float) cfg.decimal("shooting.side-spread-degrees", 10.0);
-        holdWindowMs      = cfg.ms("shooting.hold-window-ms", 200);
-        shootCooldownMs   = cfg.ms("shooting.shoot-cooldown-ms", 200);
-        arrowVelocity     = cfg.decimal("shooting.arrow-velocity", 4.0);
-        arrowDamageMin    = cfg.decimal("shooting.arrow-damage-min", 20000.0);
-        arrowDamageMax    = cfg.decimal("shooting.arrow-damage-max", 50000.0);
-        clickActions      = loadClickActions(cfg.list("shooting.click-actions"), log);
-
-        shootSound        = loadSound(cfg.string("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"), log);
-        shootSoundVolume  = (float) cfg.decimal("shooting.shoot-sound-volume", 1.0);
-        shootSoundPitch   = (float) cfg.decimal("shooting.shoot-sound-pitch", 1.0);
+        holdWindowMs = cfg.ms("shooting.hold-window-ms", 200);
+        shootCooldownMs = cfg.ms("shooting.shoot-cooldown-ms", 200);
+        arrowVelocity = cfg.decimal("shooting.arrow-velocity", 4.0);
+        arrowDamageMin = cfg.decimal("shooting.arrow-damage-min", 20000.0);
+        arrowDamageMax = cfg.decimal("shooting.arrow-damage-max", 50000.0);
+        criticalArrows = cfg.bool("shooting.critical-arrows");
+        clickActions = loadClickActions(cfg.list("shooting.click-actions"));
+        shootSound = loadSound(cfg.string("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"));
+        shootSoundVolume = (float) cfg.decimal("shooting.shoot-sound-volume", 1.0);
+        shootSoundPitch = (float) cfg.decimal("shooting.shoot-sound-pitch", 1.0);
     }
 
-    private void readItem(ConfigReader cfg, Logger log) {
-        material                = loadMaterial(cfg.string("item.material", "BOW"), log);
-        displayName             = cfg.string("item.display-name", "<light_purple>Precise Terminator <gold>✪✪✪✪<red>➎");
-        lore                    = Collections.unmodifiableList(cfg.list("item.lore"));
-        unbreakable             = cfg.bool();
-
-        enchantments            = HARDCODED_ENCHANTMENTS;
-        hiddenTooltipComponents = resolveHiddenComponents(log);
+    private void readItem(ConfigReader cfg) {
+        material = loadMaterial(cfg.string("item.material", "BOW"));
+        displayName = cfg.string("item.display-name", "<light_purple>Precise Terminator <gold>✪✪✪✪<red>➎");
+        lore = Collections.unmodifiableList(cfg.list("item.lore"));
+        unbreakable = cfg.bool("item.unbreakable");
+        enchantments = HARDCODED_ENCHANTMENTS;
+        hiddenTooltipComponents = resolveHiddenComponents();
     }
 
     private void readSalvation(ConfigReader cfg) {
         salvationHitsRequired = cfg.whole("salvation.hits-required", 3, 1);
-        beamMaxDistance       = cfg.decimal("salvation.beam-distance", 32.0);
-        beamMaxPierce         = cfg.whole("salvation.beam-max-pierce", 5, 0);
-        beamDamage            = cfg.decimal("salvation.beam-damage", 50000.0);
-        beamCooldownMs        = cfg.ms("salvation.beam-cooldown-ms", 100);
+        beamMaxDistance = cfg.decimal("salvation.beam-distance", 32.0);
+        beamMaxPierce = cfg.whole("salvation.beam-max-pierce", 5, 0);
+        beamDamage = cfg.decimal("salvation.beam-damage", 50000.0);
+        beamCooldownMs = cfg.ms("salvation.beam-cooldown-ms", 100);
         beamParticlesPerMeter = cfg.decimal("salvation.beam-particles-per-meter", 2.0);
-        beamRaySize           = cfg.decimal("salvation.beam-ray-size", 0.5);
+        beamRaySize = cfg.decimal("salvation.beam-ray-size", 0.5);
     }
 
-    private static Set<DataComponentType> resolveHiddenComponents(Logger log) {
+    private Set<DataComponentType> resolveHiddenComponents() {
         Registry<DataComponentType> registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.DATA_COMPONENT_TYPE);
         Set<DataComponentType> components = new HashSet<>(HIDDEN_COMPONENT_KEYS.size());
 
@@ -141,56 +140,46 @@ public final class TerminatorConfig {
             if (type != null) {
                 components.add(type);
             } else {
-                log.fine("[Terminator] data component '" + name + "' does not exist on this server version - skipped.");
+                plugin.getLogger().fine("[Terminator] data component '" + name + "' does not exist on this server version - skipped.");
             }
         }
         return Collections.unmodifiableSet(components);
     }
 
-    private static Material loadMaterial(String raw, Logger log) {
+    private Material loadMaterial(String raw) {
         Material material = Material.matchMaterial(raw);
         if (material == null || material.isAir() || !material.isItem()) {
-            warn(log, "item.material", "'" + raw + "' is not a usable item material - using BOW.");
+            warn("item.material", "'" + raw + "' is not a usable item material - using BOW.");
             return Material.BOW;
         }
         return material;
     }
 
-    private static Sound loadSound(String raw, Logger log) {
+    private Sound loadSound(String raw) {
         Sound sound = SoundRegistryMapper.get(raw, null);
-        if (sound == null) {
-            Registry<Sound> soundRegistry = RegistryAccess.registryAccess().getRegistry(RegistryKey.SOUND_EVENT);
-            NamespacedKey fallbackKey = soundRegistry.getKey(Sound.ENTITY_ARROW_SHOOT);
-            warn(log, "shooting.shoot-sound", "'" + raw + "' is not a registered sound - using "
-                    + (fallbackKey != null ? fallbackKey : "the default sound") + " instead.");
-            return Sound.ENTITY_ARROW_SHOOT;
-        }
-        return sound;
+        if (sound != null) return sound;
+
+        warn("shooting.shoot-sound", "'" + raw + "' is not a registered sound - using ENTITY_ARROW_SHOOT.");
+        return Sound.ENTITY_ARROW_SHOOT;
     }
 
-    private static Set<Action> loadClickActions(List<String> raw, Logger log) {
+    private Set<Action> loadClickActions(List<String> raw) {
         Set<Action> actions = EnumSet.noneOf(Action.class);
         for (String entry : raw) {
             if (entry == null || entry.isBlank()) continue;
-            Action action = parseEnum(entry);
+
+            Action action = parseAction(entry);
             if (action == null || !SUPPORTED_ACTIONS.contains(action)) {
-                warn(log, "shooting.click-actions", "'" + entry + "' is not a supported click action "
+                warn("shooting.click-actions", "'" + entry + "' is not a supported click action "
                         + "(LEFT_CLICK_AIR, LEFT_CLICK_BLOCK, RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK) - skipped.");
                 continue;
             }
             actions.add(action);
         }
-        if (actions.isEmpty()) {
-            return SUPPORTED_ACTIONS;
-        }
-        return Collections.unmodifiableSet(actions);
+        return actions.isEmpty() ? SUPPORTED_ACTIONS : Collections.unmodifiableSet(actions);
     }
 
-    private static void warn(Logger log, String path, String detail) {
-        log.warning(path + ": " + detail);
-    }
-
-    private static Action parseEnum(String input) {
+    private static Action parseAction(String input) {
         try {
             return Action.valueOf(input.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException unknown) {
@@ -198,12 +187,16 @@ public final class TerminatorConfig {
         }
     }
 
+    private void warn(String path, String detail) {
+        plugin.getLogger().warning(path + ": " + detail);
+    }
+
     private record ConfigReader(FileConfiguration cfg, Logger log) {
 
         double decimal(String path, double def) {
             if (!cfg.isSet(path)) return def;
             if (!cfg.isInt(path) && !cfg.isDouble(path) && !cfg.isLong(path)) {
-                warn(log, path, "expected a number, found '" + cfg.get(path) + "' - using " + def + ".");
+                warn(path, "expected a number, found '" + cfg.get(path) + "' - using " + def + ".");
                 return def;
             }
             return clamp(cfg.getDouble(path, def), 0.0, path);
@@ -212,7 +205,7 @@ public final class TerminatorConfig {
         int whole(String path, int def, int min) {
             if (!cfg.isSet(path)) return def;
             if (!cfg.isInt(path)) {
-                warn(log, path, "expected a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
+                warn(path, "expected a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
                 return def;
             }
             return (int) clamp(cfg.getInt(path, def), min, path);
@@ -221,16 +214,19 @@ public final class TerminatorConfig {
         long ms(String path, long def) {
             if (!cfg.isSet(path)) return def;
             if (!cfg.isInt(path) && !cfg.isLong(path)) {
-                warn(log, path, "expected a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
+                warn(path, "expected a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
                 return def;
             }
-            return (long) clamp(cfg.getLong(path, def), (long) 0, path);
+            return (long) clamp(cfg.getLong(path, def), 0L, path);
         }
 
-        private double clamp(double value, double min, String path) {
-            if (value >= min) return value;
-            warn(log, path, value + " is below the minimum " + min + " - raised to " + min + ".");
-            return min;
+        boolean bool(String path) {
+            if (!cfg.isSet(path)) return true;
+            if (!cfg.isBoolean(path)) {
+                warn(path, "expected true or false, found '" + cfg.get(path) + "' - using " + true + ".");
+                return true;
+            }
+            return cfg.getBoolean(path, true);
         }
 
         String string(String path, String def) {
@@ -241,13 +237,14 @@ public final class TerminatorConfig {
             return cfg.getStringList(path);
         }
 
-        boolean bool() {
-            if (!cfg.isSet("item.unbreakable")) return true;
-            if (!cfg.isBoolean("item.unbreakable")) {
-                warn(log, "item.unbreakable", "expected true or false, found '" + cfg.get("item.unbreakable") + "' - using " + true + ".");
-                return true;
-            }
-            return cfg.getBoolean("item.unbreakable", true);
+        private double clamp(double value, double min, String path) {
+            if (value >= min) return value;
+            warn(path, value + " is below the minimum " + min + " - raised to " + min + ".");
+            return min;
+        }
+
+        private void warn(String path, String detail) {
+            log.warning(path + ": " + detail);
         }
     }
 }

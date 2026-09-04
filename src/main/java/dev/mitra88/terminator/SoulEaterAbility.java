@@ -2,6 +2,7 @@ package dev.mitra88.terminator;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
@@ -27,36 +28,23 @@ public final class SoulEaterAbility implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
-        Player attacker;
-
-        if (event.getDamager() instanceof Player player) {
-            attacker = player;
-        } else if (event.getDamager() instanceof Arrow arrow) {
-            if (!(arrow.getShooter() instanceof Player shooter)) return;
-            if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY)) {
-                return;
-            }
-            attacker = shooter;
-        } else {
-            return;
-        }
+        Player attacker = resolveAttacker(event.getDamager());
+        if (attacker == null) return;
 
         ItemStack weapon = attacker.getInventory().getItemInMainHand();
         ItemMeta meta = Terminator.terminatorMeta(weapon);
         if (meta == null) return;
 
-        boolean isKillingBlow = isFatalHit(event);
-        boolean isCriticalHit = event.isCritical();
+        boolean criticalHit = isCriticalHit(event);
+        if (!criticalHit && !isFatalHit(event)) return;
 
-        if (!isCriticalHit && !isKillingBlow) {
-            return;
-        }
+        double killingBlowDamage = event.getFinalDamage();
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        boolean metaChanged = isCriticalHit && consumeStoredStrength(event, pdc);
+        boolean metaChanged = criticalHit && consumeStoredStrength(event, pdc);
 
-        if (isKillingBlow) {
-            metaChanged |= storeStrengthFromKill(event, pdc);
+        if (isFatalHit(event) && event.getEntity() instanceof Monster) {
+            metaChanged |= storeStrength(pdc, killingBlowDamage);
         }
 
         if (metaChanged) {
@@ -64,35 +52,36 @@ public final class SoulEaterAbility implements Listener {
         }
     }
 
-    private boolean storeStrengthFromKill(EntityDamageByEntityEvent event, PersistentDataContainer pdc) {
-        if (!(event.getEntity() instanceof Monster)) {
-            return false;
+    private static Player resolveAttacker(Entity damager) {
+        if (damager instanceof Player player) {
+            return player;
         }
-
-        double mobDamage = event.getFinalDamage();
-        if (mobDamage <= 0) {
-            return false;
+        if (damager instanceof Arrow arrow && arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY) && arrow.getShooter() instanceof Player shooter) {
+            return shooter;
         }
+        return null;
+    }
 
-        pdc.set(strengthKey, PersistentDataType.DOUBLE, mobDamage * DAMAGE_MULTIPLIER);
+    private static boolean isCriticalHit(EntityDamageByEntityEvent event) {
+        return event.isCritical() || (event.getDamager() instanceof Arrow arrow && arrow.isCritical());
+    }
+
+    private boolean storeStrength(PersistentDataContainer pdc, double damage) {
+        if (damage <= 0.0) return false;
+        pdc.set(strengthKey, PersistentDataType.DOUBLE, damage * DAMAGE_MULTIPLIER);
         return true;
     }
 
     private boolean consumeStoredStrength(EntityDamageByEntityEvent event, PersistentDataContainer pdc) {
         Double storedStrength = pdc.get(strengthKey, PersistentDataType.DOUBLE);
-        if (storedStrength == null || storedStrength <= 0) {
-            return false;
-        }
+        if (storedStrength == null || storedStrength <= 0.0) return false;
 
         event.setDamage(event.getDamage() + storedStrength);
         pdc.remove(strengthKey);
         return true;
     }
 
-    private boolean isFatalHit(EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof LivingEntity victim)) {
-            return false;
-        }
-        return victim.getHealth() - event.getFinalDamage() <= 0.0;
+    private static boolean isFatalHit(EntityDamageByEntityEvent event) {
+        return event.getEntity() instanceof LivingEntity victim && victim.getHealth() - event.getFinalDamage() <= 0.0;
     }
 }

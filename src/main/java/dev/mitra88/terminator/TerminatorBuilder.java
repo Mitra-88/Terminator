@@ -16,9 +16,7 @@ public final class TerminatorBuilder {
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
 
-    private static Component mm(String input) {
-        return MM.deserialize(input).decoration(TextDecoration.ITALIC, false);
-    }
+    private TerminatorBuilder() {}
 
     public static ItemStack build(TerminatorConfig config) {
         ItemStack bow = new ItemStack(config.material);
@@ -43,10 +41,14 @@ public final class TerminatorBuilder {
         bow.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
 
         if (!config.hiddenTooltipComponents.isEmpty()) {
-            bow.setData(DataComponentTypes.TOOLTIP_DISPLAY,
-                    TooltipDisplay.tooltipDisplay().addHiddenComponents(config.hiddenTooltipComponents.toArray(new DataComponentType[0])).build());
+            DataComponentType[] hidden = config.hiddenTooltipComponents.toArray(new DataComponentType[0]);
+            bow.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(hidden).build());
         }
 
         return bow;
+    }
+
+    private static Component mm(String input) {
+        return MM.deserialize(input).decoration(TextDecoration.ITALIC, false);
     }
 }
