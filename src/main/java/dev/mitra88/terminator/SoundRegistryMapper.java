@@ -10,62 +10,59 @@ import java.util.Map;
 
 public final class SoundRegistryMapper {
 
-    private static final Map<String, Sound> EXACT = new HashMap<>();
-    private static final Map<String, Sound> ALIAS = new HashMap<>();
-    private static boolean loaded = false;
+    private static final Map<String, Sound> SOUNDS = new HashMap<>();
+    private static volatile boolean loaded = false;
 
     private SoundRegistryMapper() {}
 
     public static Sound get(String input, Sound fallback) {
         if (input == null || input.isBlank()) return fallback;
 
-        String trimmed = input.trim();
-        if (trimmed.indexOf('-') != -1) return fallback;
-        if (!trimmed.matches("[A-Za-z0-9._:]+")) return fallback;
+        String key = canonical(input);
+        if (key.isEmpty()) return fallback;
 
-        ensureLoaded();
+        if (!loaded) load();
 
-        String lower = trimmed.toLowerCase(Locale.ROOT);
-
-        Sound exact = EXACT.get(lower);
-        if (exact != null) return exact;
-
-        Sound alias = ALIAS.get(normalize(lower));
-        return alias != null ? alias : fallback;
+        return SOUNDS.getOrDefault(key, fallback);
     }
 
-    private static synchronized void ensureLoaded() {
+    private static synchronized void load() {
         if (loaded) return;
 
-        Registry<Sound> registry = Registry.SOUNDS;
-        for (Sound sound : registry) {
-            NamespacedKey key = registry.getKey(sound);
+        for (Sound sound : Registry.SOUND_EVENT) {
+            NamespacedKey key = Registry.SOUND_EVENT.getKey(sound);
             if (key == null) continue;
 
-            putExact(key.toString(), sound);
-            putExact(key.getKey(), sound);
-
-            putAlias(key.toString(), sound);
-            putAlias(key.getKey(), sound);
+            put(key.getKey(), sound);
+            put(key.toString(), sound);
         }
         loaded = true;
     }
 
-    private static void putExact(String alias, Sound sound) {
-        if (alias == null || alias.isBlank()) return;
-        EXACT.putIfAbsent(alias.toLowerCase(Locale.ROOT), sound);
+    private static void put(String name, Sound sound) {
+        SOUNDS.putIfAbsent(canonical(name), sound);
     }
 
-    private static void putAlias(String alias, Sound sound) {
-        String normalized = normalize(alias);
-        if (!normalized.isEmpty()) ALIAS.putIfAbsent(normalized, sound);
+    private static String canonical(String input) {
+        String s = input.toLowerCase(Locale.ROOT);
+        StringBuilder out = new StringBuilder(s.length());
+
+        boolean separator = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '.' || c == '_' || c == ':' || c == ' ') {
+                if (!out.isEmpty()) separator = true;
+            } else if (isKeyChar(c)) {
+                if (separator) { out.append('_'); separator = false; }
+                out.append(c);
+            } else {
+                return "";
+            }
+        }
+        return out.toString();
     }
 
-    private static String normalize(String input) {
-        return input.trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[.:_]+", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_|_$", "");
+    private static boolean isKeyChar(char c) {
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
     }
 }

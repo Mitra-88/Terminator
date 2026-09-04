@@ -19,20 +19,24 @@ shooting:
   arrow-damage-max: 50000.0
 
   # Click actions that trigger the Terminator.
-  # Valid values: RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK, LEFT_CLICK_AIR, LEFT_CLICK_BLOCK, PHYSICAL
+  # Valid values: RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK, LEFT_CLICK_AIR, LEFT_CLICK_BLOCK
   click-actions:
     - RIGHT_CLICK_AIR
     - RIGHT_CLICK_BLOCK
     - LEFT_CLICK_AIR
     - LEFT_CLICK_BLOCK
 
-  # Sound played on each shot.
+  # Sound played on each shot. Any of these spellings work (hopefully):
+  #   ENTITY_ARROW_SHOOT          (constant style)
+  #   entity.arrow.shoot          (in-game key)
+  #   entity_arrow_shoot          (underscore style)
+  # Unknown names log a warning and fall back to entity.arrow.shoot.
   shoot-sound: ENTITY_ARROW_SHOOT
   shoot-sound-volume: 1.0
   shoot-sound-pitch: 1.0
 
 item:
-  # Base material of the Terminator item.
+  # Base material of the Terminator.
   material: BOW
 
   # MiniMessage-formatted display name.
@@ -49,11 +53,13 @@ item:
     - "<gray>Shot Cooldown: <green>0.2s"
     - ""
     - "<light_purple>Soul Eater V<blue>, Toxophilite X, Chance V"
-    - "<blue>Cubism VI, Divine Gift III, Dragon Tracer V, Dragon Hunter V,"
-    - "<blue>Flame II, Gravity VI, Impaling III"
+    - "<blue>Cubism VI, Divine Gift III, Flame II, Impaling III"
+    - "<blue>Dragon Tracer V, Dragon Hunter V, Gravity VI"
     - "<blue>Infinite Quiver X, Overload V, Piercing I"
     - "<blue>Power VII, Punch II, Smoldering V"
     - "<blue>Snipe IV, Tabasco III, Vicious V"
+    - ""
+    - "<blue>◆ Wake Rune III"
     - ""
     - "<gray>Shoots <aqua>3 <gray>arrows at once."
     - "<gray>Can damage enderman."
@@ -73,20 +79,6 @@ item:
 
   # Whether the item is unbreakable.
   unbreakable: true
-
-  # Enchantments applied to the item. Keys are namespaced IDs.
-  enchantments:
-    minecraft:unbreaking: 100
-
-  # Data component types hidden from the tooltip. Names must match a public
-  # static field on io.papermc.paper.datacomponent.DataComponentTypes.
-  tooltip-hidden-components:
-    - UNBREAKABLE
-    - ENCHANTMENTS
-    - STORED_ENCHANTMENTS
-    - ATTRIBUTE_MODIFIERS
-    - TRIM
-    - DYED_COLOR
 
 salvation:
   # Hits required to charge the beam.

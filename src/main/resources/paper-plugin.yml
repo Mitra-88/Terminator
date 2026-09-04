@@ -4,7 +4,7 @@ main: dev.mitra88.terminator.Terminator
 api-version: '26.2'
 load: STARTUP
 authors: [Mitra-88]
-description: Terminator is a plugin inspired by the Terminator from Hypixel Skyblock.
+description: Terminator is a PaperMC plugin that reimplements the Terminator shortbow from Hypixel Skyblock.
 website: https://github.com/Mitra-88/Terminator
 permissions:
   terminator.give:
