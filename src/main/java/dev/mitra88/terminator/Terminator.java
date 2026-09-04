@@ -3,7 +3,10 @@ package dev.mitra88.terminator;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class Terminator extends JavaPlugin {
 
@@ -37,5 +40,13 @@ public final class Terminator extends JavaPlugin {
     @Override
     public void onDisable() {
         if (listener != null) listener.cleanup();
+    }
+
+    @Nullable
+    public static ItemMeta terminatorMeta(@Nullable ItemStack item) {
+        if (item == null || item.getType().isAir()) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+        return meta.getPersistentDataContainer().has(TERMINATOR_KEY) ? meta : null;
     }
 }

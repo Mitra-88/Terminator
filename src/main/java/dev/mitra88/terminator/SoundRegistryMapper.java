@@ -1,5 +1,7 @@
 package dev.mitra88.terminator;
 
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
@@ -29,8 +31,9 @@ public final class SoundRegistryMapper {
     private static synchronized void load() {
         if (loaded) return;
 
-        for (Sound sound : Registry.SOUND_EVENT) {
-            NamespacedKey key = Registry.SOUND_EVENT.getKey(sound);
+        Registry<Sound> registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.SOUND_EVENT);
+        for (Sound sound : registry) {
+            NamespacedKey key = registry.getKey(sound);
             if (key == null) continue;
 
             put(key.getKey(), sound);

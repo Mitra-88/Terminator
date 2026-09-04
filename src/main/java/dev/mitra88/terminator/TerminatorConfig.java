@@ -48,6 +48,13 @@ public final class TerminatorConfig {
             "minecraft:charged_projectiles"
     );
 
+    private static final Set<Action> SUPPORTED_ACTIONS = Collections.unmodifiableSet(EnumSet.of(
+            Action.LEFT_CLICK_AIR,
+            Action.LEFT_CLICK_BLOCK,
+            Action.RIGHT_CLICK_AIR,
+            Action.RIGHT_CLICK_BLOCK
+    ));
+
     public float sideSpreadDegrees;
     public long holdWindowMs;
     public long shootCooldownMs;
@@ -142,8 +149,8 @@ public final class TerminatorConfig {
 
     private static Material loadMaterial(String raw, Logger log) {
         Material material = Material.matchMaterial(raw);
-        if (material == null) {
-            warn(log, "item.material", "'" + raw + "' is not a material - using BOW.");
+        if (material == null || material.isAir() || !material.isItem()) {
+            warn(log, "item.material", "'" + raw + "' is not a usable item material - using BOW.");
             return Material.BOW;
         }
         return material;
@@ -152,7 +159,8 @@ public final class TerminatorConfig {
     private static Sound loadSound(String raw, Logger log) {
         Sound sound = SoundRegistryMapper.get(raw, null);
         if (sound == null) {
-            NamespacedKey fallbackKey = Registry.SOUND_EVENT.getKey(Sound.ENTITY_ARROW_SHOOT);
+            Registry<Sound> soundRegistry = RegistryAccess.registryAccess().getRegistry(RegistryKey.SOUND_EVENT);
+            NamespacedKey fallbackKey = soundRegistry.getKey(Sound.ENTITY_ARROW_SHOOT);
             warn(log, "shooting.shoot-sound", "'" + raw + "' is not a registered sound - using "
                     + (fallbackKey != null ? fallbackKey : "the default sound") + " instead.");
             return Sound.ENTITY_ARROW_SHOOT;
@@ -165,15 +173,15 @@ public final class TerminatorConfig {
         for (String entry : raw) {
             if (entry == null || entry.isBlank()) continue;
             Action action = parseEnum(entry);
-            if (action != null) {
-                actions.add(action);
-            } else {
-                warn(log, "shooting.click-actions", "'" + entry + "' is not a click action "
+            if (action == null || !SUPPORTED_ACTIONS.contains(action)) {
+                warn(log, "shooting.click-actions", "'" + entry + "' is not a supported click action "
                         + "(LEFT_CLICK_AIR, LEFT_CLICK_BLOCK, RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK) - skipped.");
+                continue;
             }
+            actions.add(action);
         }
         if (actions.isEmpty()) {
-            actions = EnumSet.of(Action.RIGHT_CLICK_AIR, Action.RIGHT_CLICK_BLOCK, Action.LEFT_CLICK_AIR, Action.LEFT_CLICK_BLOCK);
+            return SUPPORTED_ACTIONS;
         }
         return Collections.unmodifiableSet(actions);
     }
@@ -204,7 +212,7 @@ public final class TerminatorConfig {
         int whole(String path, int def, int min) {
             if (!cfg.isSet(path)) return def;
             if (!cfg.isInt(path)) {
-                warn(log, path, "particles-per-meter must be a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
+                warn(log, path, "expected a whole number, found '" + cfg.get(path) + "' - using " + def + ".");
                 return def;
             }
             return (int) clamp(cfg.getInt(path, def), min, path);
@@ -234,6 +242,11 @@ public final class TerminatorConfig {
         }
 
         boolean bool() {
+            if (!cfg.isSet("item.unbreakable")) return true;
+            if (!cfg.isBoolean("item.unbreakable")) {
+                warn(log, "item.unbreakable", "expected true or false, found '" + cfg.get("item.unbreakable") + "' - using " + true + ".");
+                return true;
+            }
             return cfg.getBoolean("item.unbreakable", true);
         }
     }

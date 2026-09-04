@@ -33,7 +33,7 @@ public final class SoulEaterAbility implements Listener {
             attacker = player;
         } else if (event.getDamager() instanceof Arrow arrow) {
             if (!(arrow.getShooter() instanceof Player shooter)) return;
-            if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
+            if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY)) {
                 return;
             }
             attacker = shooter;
@@ -42,14 +42,8 @@ public final class SoulEaterAbility implements Listener {
         }
 
         ItemStack weapon = attacker.getInventory().getItemInMainHand();
-        if (weapon.getType().isAir()) return;
-        if (!weapon.hasItemMeta()) return;
-
-        ItemMeta meta = weapon.getItemMeta();
+        ItemMeta meta = Terminator.terminatorMeta(weapon);
         if (meta == null) return;
-        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
-            return;
-        }
 
         boolean isKillingBlow = isFatalHit(event);
         boolean isCriticalHit = event.isCritical();

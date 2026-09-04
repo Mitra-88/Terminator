@@ -14,8 +14,6 @@ import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
@@ -72,12 +70,7 @@ public final class TerminatorEventListener implements Listener {
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        ItemStack item = event.getItem();
-        if (item == null || !item.hasItemMeta()) return;
-        ItemMeta meta = item.getItemMeta();
-        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
-            return;
-        }
+        if (Terminator.terminatorMeta(event.getItem()) == null) return;
 
         Action action = event.getAction();
         if (!config.clickActions.contains(action)) return;
@@ -95,14 +88,8 @@ public final class TerminatorEventListener implements Listener {
     @EventHandler
     public void onPrePlayerAttack(PrePlayerAttackEntityEvent event) {
         Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
 
-        if (!item.hasItemMeta()) return;
-        ItemMeta meta = item.getItemMeta();
-        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
-            return;
-        }
-
+        if (Terminator.terminatorMeta(player.getInventory().getItemInMainHand()) == null) return;
         if (!isLeftClickEnabled()) return;
 
         event.setCancelled(true);
@@ -112,13 +99,7 @@ public final class TerminatorEventListener implements Listener {
     @EventHandler
     public void onEntityShootBow(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player)) return;
-
-        ItemStack bow = event.getBow();
-        if (bow == null || !bow.hasItemMeta()) return;
-        ItemMeta meta = bow.getItemMeta();
-        if (!meta.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
-            return;
-        }
+        if (Terminator.terminatorMeta(event.getBow()) == null) return;
 
         event.setCancelled(true);
     }
@@ -126,33 +107,22 @@ public final class TerminatorEventListener implements Listener {
     @EventHandler
     public void onProjectileHit(ProjectileHitEvent event) {
         if (!(event.getEntity() instanceof Arrow arrow)) return;
-        if (!(arrow.getShooter() instanceof Player shooter)) return;
-        if (!shooter.isOnline()) return;
-        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE)) {
-            return;
-        }
+        if (!arrow.getPersistentDataContainer().has(Terminator.TERMINATOR_KEY)) return;
 
-        if (event.getHitBlock() != null) {
-            arrow.remove();
-            return;
-        }
+        Player shooter = (arrow.getShooter() instanceof Player player) ? player : null;
+        boolean shooterOnline = shooter != null && shooter.isOnline();
 
-        if (!(event.getHitEntity() instanceof LivingEntity target)) {
-            arrow.remove();
-            return;
-        }
-
-        if (target instanceof ArmorStand) {
-            arrow.remove();
-            return;
-        }
-
-        if (target instanceof Enderman enderman) {
+        if (shooterOnline && event.getHitEntity() instanceof Enderman enderman) {
             enderman.damage(arrow.getDamage(), shooter);
         }
 
         arrow.remove();
-        salvationBeam.onArrowHit(shooter);
+
+        if (shooterOnline
+                && event.getHitEntity() instanceof LivingEntity target
+                && !(target instanceof ArmorStand)) {
+            salvationBeam.onArrowHit(shooter);
+        }
     }
 
     @EventHandler
