@@ -103,7 +103,7 @@ public final class TerminatorConfig {
         arrowVelocity = cfg.decimal("shooting.arrow-velocity", 4.0);
         arrowDamageMin = cfg.decimal("shooting.arrow-damage-min", 20000.0);
         arrowDamageMax = cfg.decimal("shooting.arrow-damage-max", 50000.0);
-        criticalArrows = cfg.bool();
+        criticalArrows = cfg.bool("shooting.critical-arrows", true);
         clickActions = loadClickActions(cfg.list("shooting.click-actions"));
         shootSound = loadSound(cfg.string("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"));
         shootSoundVolume = (float) cfg.decimal("shooting.shoot-sound-volume", 1.0);
@@ -189,6 +189,7 @@ public final class TerminatorConfig {
         plugin.getLogger().warning(path + ": " + detail);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private record ConfigReader(FileConfiguration cfg, Logger log) {
 
         double decimal(String path, double def) {
@@ -218,13 +219,13 @@ public final class TerminatorConfig {
             return (long) clamp(cfg.getLong(path, def), 0L, path);
         }
 
-        boolean bool() {
-            if (!cfg.isSet("shooting.critical-arrows")) return true;
-            if (!cfg.isBoolean("shooting.critical-arrows")) {
-                warn("shooting.critical-arrows", "expected true or false, found '" + cfg.get("shooting.critical-arrows") + "' - using " + true + ".");
-                return true;
+        boolean bool(String path, boolean def) {
+            if (!cfg.isSet(path)) return def;
+            if (!cfg.isBoolean(path)) {
+                warn(path, "expected true or false, found '" + cfg.get(path) + "' - using " + def + ".");
+                return def;
             }
-            return cfg.getBoolean("shooting.critical-arrows", true);
+            return cfg.getBoolean(path, def);
         }
 
         String string(String path, String def) {
