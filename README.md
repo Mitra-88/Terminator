@@ -1,53 +1,38 @@
 # Terminator
 
-A Paper plugin that adds the **Terminator** shortbow from [Hypixel SkyBlock](https://hypixelskyblock.minecraft.wiki/w/Terminator) to your server.
+Paper plugin that adds the Terminator from Hypixel SkyBlock (yes, the M7 one) to your server.
 
-## The bow at a glance
+It's a shortbow: shoots instantly, no drawing, 3 arrows per click. Every 3rd landed hit charges Salvation, a beam that pierces up to 5 mobs and always crits. Killing a mob stores its soul in the bow (Soul Eater), and your next crit unleashes it for bonus damage. If you've used one on Hypixel, you already know exactly how it plays.
 
-- **Shoots instantly** - just click.
-- **Fires 3 arrows at once** in a spread.
-- **Damages endermen** (normally immune to arrows).
-- **Never breaks.**
+Wiki: [Terminator](https://hypixelskyblock.minecraft.wiki/w/Terminator)
 
-It also has two abilities: **Salvation** (a piercing beam) and **Soul Eater** (stored kill power).
+## Setup
 
-## For players
+For the supported Minecraft versions, check the [Modrinth page](https://modrinth.com/plugin/terminator) or the [latest release on GitHub](https://github.com/Mitra-88/Terminator) both always show the current one.
 
-### Getting the bow
-Run `/giveterminator` - everyone can use it by default.
+Drop the jar in `plugins/`, restart. The config generates at `plugins/Terminator/config.yml` and everything in it is commented.
 
-### Shooting
-- **Hold right-click** - automatic fire.
-- **Spam left-click** - rapid fire.
-- No arrows needed in your inventory.
+After that, config changes don't need a restart: edit, save, `/terminatorreload`.
+## Getting one
 
-### Salvation (the beam)
-1. Land **3 arrow hits** on enemies. Your action bar shows progress:
-   *Salvation: T1 → T2 → T3!*
-2. **Left-click** to fire the beam.
-3. It pierces up to **5 enemies** in a line and hits hard.
-4. The charge resets - land 3 more hits to fire it again.
+No crafting recipe you weren't going to craft it anyway. Right?
 
-### Soul Eater
-1. **Kill a monster** - the bow stores power from the killing blow (10× its damage).
-2. Your **next critical hit** releases all that stored power as bonus damage.
+```
+/giveterminator [player]
+```
 
-## For admins
+No argument gives one to yourself. Note that `terminator.give` is enabled for **everyone** by default. If you don't want players handing themselves mythics, set `default: false` on it in `paper-plugin.yml` or override it in your permissions' plugin.
 
-### Installation
-1. For the supported Minecraft versions, check the [Modrinth page](https://modrinth.com/plugin/terminator) or the [latest release on GitHub](https://github.com/Mitra-88/Terminator) both always show the current one.
-2. Drop the `.jar` into `plugins/`.
-3. Restart the server.
-4. (Optional) Edit `plugins/Terminator/config.yml`, then run `/terminatorreload`.
-
-### Commands & permissions
+## Commands & permissions
 
 | Command                    | Description                             | Permission          | Default     |
 |----------------------------|-----------------------------------------|---------------------|-------------|
 | `/giveterminator [player]` | Gives the bow to you or another player. | `terminator.give`   | All players |
 | `/terminatorreload`        | Reloads `config.yml` without a restart. | `terminator.reload` | Ops         |
 
-### Most-used config options
+## Config
+
+Everything's documented in `config.yml` itself. The options you'll actually touch:
 
 | Option                               | Default              | What it does                                  |
 |--------------------------------------|----------------------|-----------------------------------------------|
@@ -60,9 +45,9 @@ Run `/giveterminator` - everyone can use it by default.
 | `salvation.beam-max-pierce`          | 5                    | Max enemies the beam can hit.                 |
 | `salvation.beam-distance`            | 32                   | Beam range in blocks.                         |
 
-The bow's name and lore are fully configurable (`item.display-name`, `item.lore`) and support
-[MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting.
+The Terminator's name and lore are fully configurable (`item.display-name`, `item.lore`) and support [MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting. 
+That's where the stars and colors in the default item come from.
 
 ## Credits & license
-- Icon: [Furfsky](https://furfsky.net/)
-- Licensed under the [GNU AGPL v3.0](LICENSE).
+Icon: [Furfsky](https://furfsky.net/)
+AGPL-3.0, see [LICENSE](LICENSE).

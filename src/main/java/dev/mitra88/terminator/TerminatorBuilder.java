@@ -32,7 +32,7 @@ public final class TerminatorBuilder {
                 meta.lore(lore);
             }
 
-            meta.setUnbreakable(config.unbreakable);
+            meta.setUnbreakable(true);
             meta.getPersistentDataContainer().set(Terminator.TERMINATOR_KEY, PersistentDataType.BYTE, (byte) 1);
 
             config.enchantments.forEach((enchantment, level) -> meta.addEnchant(enchantment, level, true));

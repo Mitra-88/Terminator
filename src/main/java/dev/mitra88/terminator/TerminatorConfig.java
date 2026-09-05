@@ -70,7 +70,6 @@ public final class TerminatorConfig {
     public Material material;
     public String displayName;
     public List<String> lore;
-    public boolean unbreakable;
     public Map<Enchantment, Integer> enchantments;
     public Set<DataComponentType> hiddenTooltipComponents;
 
@@ -104,7 +103,7 @@ public final class TerminatorConfig {
         arrowVelocity = cfg.decimal("shooting.arrow-velocity", 4.0);
         arrowDamageMin = cfg.decimal("shooting.arrow-damage-min", 20000.0);
         arrowDamageMax = cfg.decimal("shooting.arrow-damage-max", 50000.0);
-        criticalArrows = cfg.bool("shooting.critical-arrows");
+        criticalArrows = cfg.bool();
         clickActions = loadClickActions(cfg.list("shooting.click-actions"));
         shootSound = loadSound(cfg.string("shooting.shoot-sound", "ENTITY_ARROW_SHOOT"));
         shootSoundVolume = (float) cfg.decimal("shooting.shoot-sound-volume", 1.0);
@@ -115,7 +114,6 @@ public final class TerminatorConfig {
         material = loadMaterial(cfg.string("item.material", "BOW"));
         displayName = cfg.string("item.display-name", "<light_purple>Precise Terminator <gold>✪✪✪✪<red>➎");
         lore = Collections.unmodifiableList(cfg.list("item.lore"));
-        unbreakable = cfg.bool("item.unbreakable");
         enchantments = HARDCODED_ENCHANTMENTS;
         hiddenTooltipComponents = resolveHiddenComponents();
     }
@@ -220,13 +218,13 @@ public final class TerminatorConfig {
             return (long) clamp(cfg.getLong(path, def), 0L, path);
         }
 
-        boolean bool(String path) {
-            if (!cfg.isSet(path)) return true;
-            if (!cfg.isBoolean(path)) {
-                warn(path, "expected true or false, found '" + cfg.get(path) + "' - using " + true + ".");
+        boolean bool() {
+            if (!cfg.isSet("shooting.critical-arrows")) return true;
+            if (!cfg.isBoolean("shooting.critical-arrows")) {
+                warn("shooting.critical-arrows", "expected true or false, found '" + cfg.get("shooting.critical-arrows") + "' - using " + true + ".");
                 return true;
             }
-            return cfg.getBoolean(path, true);
+            return cfg.getBoolean("shooting.critical-arrows", true);
         }
 
         String string(String path, String def) {

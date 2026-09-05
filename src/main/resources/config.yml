@@ -1,50 +1,86 @@
-# Terminator Configuration
+# ================================================================
+#  Terminator config
+# ================================================================
+#  change whatever's after the ":", leave the key names alone
+#  edit -> save -> /terminatorreload (ops only) or just restart
+#
+#  ms = milliseconds, 1000 = 1 second
+#  damage is in raw points: 20 damage = 10 hearts = a vanilla
+#  zombie's entire health bar. keep that in mind
+# ================================================================
 
+
+# ------------------------------------------------
+#  shooting
+#
+#  it's a shortbow. no drawing, shoots the instant
+#  you click, and fires 3 arrows at once.
+# ------------------------------------------------
 shooting:
-  # Spread (in degrees) between the center arrow and each side arrow.
+  # angle of the 2 side arrows off the middle one.
+  # 10 is roughly the real thing. more = shotgun,
+  # less = laser pointer
   side-spread-degrees: 10.0
 
-  # Time window (ms) during which an opposite click is blocked to suppress
-  # the vanilla bow charge when click-spamming the Terminator.
+  # how long a click counts as "held" instead of tapped.
+  # if quick shots don't register, raise this
   hold-window-ms: 250
 
-  # Cooldown (ms) between Terminator shots.
+  # delay between shots. 200 = 0.2s, same as the real Terminator.
+  # 0 = full click spam. you've been warned
   shoot-cooldown-ms: 200
 
-  # Velocity multiplier applied to each arrow's direction vector.
+  # arrow speed. 3.0 = vanilla full draw. past ~6 you'll
+  # start phasing past anything close to you
   arrow-velocity: 4.0
 
-  # Random arrow damage range (per arrow). Use equal values to make it fixed.
+  # each arrow rolls random damage between min and max.
+  # yes, these are skyblock numbers. 20k damage vs a
+  # 20hp zombie is exactly what it sounds like.
+  # also remember: 3 arrows per shot, this is per arrow
   arrow-damage-min: 20000.0
   arrow-damage-max: 50000.0
 
-  # Click actions that trigger the Terminator.
-  # Valid values: RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK, LEFT_CLICK_AIR, LEFT_CLICK_BLOCK
+  # which clicks fire the bow. delete a line to disable it.
+  # valid options:
+  #   RIGHT_CLICK_AIR, RIGHT_CLICK_BLOCK,
+  #   LEFT_CLICK_AIR, LEFT_CLICK_BLOCK
+  # left click matters - that's how salvation gets cast,
+  # and other plugins love stealing left clicks
   click-actions:
     - RIGHT_CLICK_AIR
     - RIGHT_CLICK_BLOCK
     - LEFT_CLICK_AIR
     - LEFT_CLICK_BLOCK
 
-  # Sound played on each shot. Any of these spellings work (hopefully):
-  #   ENTITY_ARROW_SHOOT          (constant style)
-  #   entity.arrow.shoot          (in-game key)
-  #   entity_arrow_shoot          (underscore style)
-  # Unknown names log a warning and fall back to entity.arrow.shoot.
+  # bukkit sound name (ENTITY_ARROW_SHOOT etc.). typo it and
+  # it silently falls back to a default shoot sound
   shoot-sound: ENTITY_ARROW_SHOOT
   shoot-sound-volume: 1.0
   shoot-sound-pitch: 1.0
 
+  # makes every arrow a crit. note: soul eater only goes
+  # off on crits, so flipping this off basically disables it
   critical-arrows: true
 
+
+# ------------------------------------------------
+#  item
+#
+#  all cosmetic. the lore stats are flavor text -
+#  the actual damage lives in "shooting" above
+# ------------------------------------------------
 item:
-  # Base material of the Terminator.
+  # keep this BOW. the shooting code checks the item
+  # type, so anything else is just a weird paperweight
   material: BOW
 
-  # MiniMessage-formatted display name.
+  # minimessage tags (<red> etc.), not & codes.
+  # the stars are just decoration, go nuts
   display-name: "<light_purple>Precise Terminator <gold>✪✪✪✪<red>➎"
 
-  # MiniMessage-formatted lore lines. Use an empty string for a blank line.
+  # hover text. freely editable, just keep the "-" and quotes.
+  # a lone "" line is an empty line
   lore:
     - "<gray>Gear Score: <light_purple>1042 <dark_gray>(4163)"
     - "<gray>Damage: <red>374 <yellow>(+30) <dark_gray>(+1,958.53)"
@@ -79,27 +115,36 @@ item:
     - ""
     - "<light_purple><bold><obfuscated>A</obfuscated> MYTHIC DUNGEON BOW <obfuscated>A</obfuscated>"
 
-  # Whether the item is unbreakable.
-  unbreakable: true
 
+# ------------------------------------------------
+#  salvation
+#
+#  every landed hit charges the bow (T1, T2, T3 in the
+#  action bar). full charge = next shot fires a beam
+#  straight through everything in its path
+# ------------------------------------------------
 salvation:
-  # Hits required to charge the beam.
+  # hits needed before the beam is ready. 3, like the real one
   hits-required: 3
 
-  # Beam length (blocks). Native ray-trace ceiling.
+  # beam range in blocks. walls cut it short
   beam-distance: 32.0
 
-  # Maximum enemies the beam can pierce.
+  # max enemies pierced per beam. 5, like the real one
   beam-max-pierce: 5
 
-  # Beam damage per enemy hit (always crits, ignores i-frames).
+  # damage per enemy, not split between them.
+  # 50k on a 20hp zombie, you do the math
   beam-damage: 50000.0
 
-  # Cooldown (ms) between Salvation beams.
+  # real terminator has no cooldown. the 100ms here is just
+  # stopping the beam from double-firing off one click,
+  # leave it small
   beam-cooldown-ms: 100
 
-  # Dripping-lava particles per meter of beam trail.
+  # particles per block of beam. 2 looks right.
   beam-particles-per-meter: 2.0
 
-  # Ray half-width used by the entity ray-tracer (hitbox tolerance).
+  # beam hitbox width. 0.5 = you actually have to aim,
+  # 1.0 = basically a free hit
   beam-ray-size: 0.5

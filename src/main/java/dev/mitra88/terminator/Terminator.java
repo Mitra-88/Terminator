@@ -2,15 +2,25 @@ package dev.mitra88.terminator;
 
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.damage.DamageSource;
+import org.bukkit.damage.DamageType;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 public final class Terminator extends JavaPlugin {
 
     public static final NamespacedKey TERMINATOR_KEY = new NamespacedKey("terminator", "terminator");
+    public static final NamespacedKey ARROW_DAMAGE_KEY = new NamespacedKey("terminator", "arrow_damage");
 
     private TerminatorConfig config;
     private TerminatorEventListener listener;
@@ -42,5 +52,30 @@ public final class Terminator extends JavaPlugin {
         if (item == null || item.getType().isAir()) return null;
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.getPersistentDataContainer().has(TERMINATOR_KEY) ? meta : null;
+    }
+
+    public static void damageIgnoringHurtCooldown(LivingEntity target, Entity attacker, double amount, String damageTypeKey) {
+        if (amount <= 0.0) return;
+
+        DamageType type = resolveDamageType(damageTypeKey);
+        DamageSource source = DamageSource.builder(type).withCausingEntity(attacker).withDirectEntity(attacker).build();
+
+        int previousMaxNoDamageTicks = target.getMaximumNoDamageTicks();
+        try {
+            target.setMaximumNoDamageTicks(0);
+            target.setNoDamageTicks(0);
+            target.damage(amount, source);
+        } finally {
+            target.setMaximumNoDamageTicks(previousMaxNoDamageTicks);
+        }
+    }
+
+    private static DamageType resolveDamageType(String key) {
+        Registry<DamageType> registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.DAMAGE_TYPE);
+        DamageType type = registry.get(NamespacedKey.minecraft(key));
+        if (type == null) {
+            type = registry.get(NamespacedKey.minecraft("generic"));
+        }
+        return Objects.requireNonNull(type, "Damage type '" + key + "' is not registered");
     }
 }

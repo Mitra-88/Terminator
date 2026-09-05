@@ -1,7 +1,5 @@
 package dev.mitra88.terminator;
 
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -9,6 +7,7 @@ import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -20,7 +19,10 @@ import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public final class SalvationBeamAbility {
 
@@ -30,42 +32,41 @@ public final class SalvationBeamAbility {
 
     private final TerminatorConfig config;
 
-    private final Int2IntOpenHashMap hitCounter = new Int2IntOpenHashMap();
-    private final Int2LongOpenHashMap beamCooldown = new Int2LongOpenHashMap();
+    private final Map<UUID, Integer> hitCounter = new HashMap<>();
+    private final Map<UUID, Long> beamCooldown = new HashMap<>();
 
     public SalvationBeamAbility(TerminatorConfig config) {
         this.config = config;
-        hitCounter.defaultReturnValue(0);
-        beamCooldown.defaultReturnValue(0L);
     }
 
     public void onArrowHit(Player shooter) {
-        int hits = hitCounter.get(shooter.getEntityId());
+        UUID id = shooter.getUniqueId();
+        int hits = hitCounter.getOrDefault(id, 0);
         if (hits >= config.salvationHitsRequired) return;
 
         hits++;
-        hitCounter.put(shooter.getEntityId(), hits);
+        hitCounter.put(id, hits);
         shooter.sendActionBar(progressMessage(hits));
     }
 
     public boolean tryFireBeam(Player player) {
-        int id = player.getEntityId();
+        UUID id = player.getUniqueId();
         long now = System.currentTimeMillis();
 
-        if (hitCounter.get(id) < config.salvationHitsRequired || now - beamCooldown.get(id) < config.beamCooldownMs) {
+        if (hitCounter.getOrDefault(id, 0) < config.salvationHitsRequired
+                || now - beamCooldown.getOrDefault(id, 0L) < config.beamCooldownMs) {
             return false;
         }
 
         beamCooldown.put(id, now);
-        hitCounter.put(id, 0);
+        hitCounter.remove(id);
         fireSalvationBeam(player);
         return true;
     }
 
     public void onQuit(Player player) {
-        int id = player.getEntityId();
-        hitCounter.remove(id);
-        beamCooldown.remove(id);
+        hitCounter.remove(player.getUniqueId());
+        beamCooldown.remove(player.getUniqueId());
     }
 
     public void cleanup() {
@@ -84,6 +85,8 @@ public final class SalvationBeamAbility {
         Vector origin = eye.toVector();
         Vector direction = eye.getDirection();
 
+        world.playSound(player.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_DEATH, 0.3f, 2.0f);
+
         double maxDistance = Math.max(0.0, config.beamMaxDistance);
         double raySize = Math.max(0.0, config.beamRaySize);
         int maxPierce = Math.max(0, config.beamMaxPierce);
@@ -94,18 +97,7 @@ public final class SalvationBeamAbility {
         spawnLavaTrail(world, origin, direction, limit);
 
         for (LivingEntity target : findBeamTargets(world, eye, origin, direction, limit, raySize, maxPierce, player)) {
-            dealBeamDamage(target, player);
-        }
-    }
-
-    private void dealBeamDamage(LivingEntity target, Player player) {
-        int previousMaxNoDamageTicks = target.getMaximumNoDamageTicks();
-        try {
-            target.setMaximumNoDamageTicks(0);
-            target.setNoDamageTicks(0);
-            target.damage(config.beamDamage, player);
-        } finally {
-            target.setMaximumNoDamageTicks(previousMaxNoDamageTicks);
+            Terminator.damageIgnoringHurtCooldown(target, player, config.beamDamage, "player");
         }
     }
 

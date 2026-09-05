@@ -1,6 +1,8 @@
 package dev.mitra88.terminator;
 
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -18,15 +20,15 @@ import org.bukkit.plugin.Plugin;
 
 public final class SoulEaterAbility implements Listener {
 
-    private static final double DAMAGE_MULTIPLIER = 10.0;
+    private static final double SOUL_MULTIPLIER = 10.0;
 
-    private final NamespacedKey strengthKey;
+    private final NamespacedKey soulKey;
 
     public SoulEaterAbility(Plugin plugin) {
-        this.strengthKey = new NamespacedKey(plugin, "soul_eater_strength");
+        this.soulKey = new NamespacedKey(plugin, "soul_eater_strength");
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
         Player attacker = resolveAttacker(event.getDamager());
         if (attacker == null) return;
@@ -35,16 +37,15 @@ public final class SoulEaterAbility implements Listener {
         ItemMeta meta = Terminator.terminatorMeta(weapon);
         if (meta == null) return;
 
-        boolean criticalHit = isCriticalHit(event);
-        if (!criticalHit && !isFatalHit(event)) return;
-
-        double killingBlowDamage = event.getFinalDamage();
-
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        boolean metaChanged = criticalHit && consumeStoredStrength(event, pdc);
+        boolean metaChanged = false;
 
-        if (isFatalHit(event) && event.getEntity() instanceof Monster) {
-            metaChanged |= storeStrength(pdc, killingBlowDamage);
+        if (isCriticalHit(event)) {
+            metaChanged |= consumeStoredSoul(event, pdc);
+        }
+
+        if (isFatalHit(event) && event.getEntity() instanceof Monster monster) {
+            metaChanged |= storeSoul(pdc, monster);
         }
 
         if (metaChanged) {
@@ -66,19 +67,32 @@ public final class SoulEaterAbility implements Listener {
         return event.isCritical() || (event.getDamager() instanceof Arrow arrow && arrow.isCritical());
     }
 
-    private boolean storeStrength(PersistentDataContainer pdc, double damage) {
-        if (damage <= 0.0) return false;
-        pdc.set(strengthKey, PersistentDataType.DOUBLE, damage * DAMAGE_MULTIPLIER);
+    private boolean consumeStoredSoul(EntityDamageByEntityEvent event, PersistentDataContainer pdc) {
+        Double storedSoul = pdc.get(soulKey, PersistentDataType.DOUBLE);
+        if (storedSoul == null || storedSoul <= 0.0) return false;
+
+        event.setDamage(event.getDamage() + storedSoul);
+        pdc.remove(soulKey);
         return true;
     }
 
-    private boolean consumeStoredStrength(EntityDamageByEntityEvent event, PersistentDataContainer pdc) {
-        Double storedStrength = pdc.get(strengthKey, PersistentDataType.DOUBLE);
-        if (storedStrength == null || storedStrength <= 0.0) return false;
+    private boolean storeSoul(PersistentDataContainer pdc, Monster monster) {
+        AttributeInstance attackDamage = monster.getAttribute(Attribute.ATTACK_DAMAGE);
+        double soul = (attackDamage != null ? attackDamage.getValue() : 0.0) * SOUL_MULTIPLIER;
 
-        event.setDamage(event.getDamage() + storedStrength);
-        pdc.remove(strengthKey);
-        return true;
+        if (soul > 0.0) {
+            Double storedSoul = pdc.get(soulKey, PersistentDataType.DOUBLE);
+            if (storedSoul != null && storedSoul == soul) return false;
+
+            pdc.set(soulKey, PersistentDataType.DOUBLE, soul);
+            return true;
+        }
+
+        if (pdc.has(soulKey)) {
+            pdc.remove(soulKey);
+            return true;
+        }
+        return false;
     }
 
     private static boolean isFatalHit(EntityDamageByEntityEvent event) {
